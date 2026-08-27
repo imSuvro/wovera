@@ -1,3 +1,4 @@
+import { parseRouteResult } from "@wovera/core";
 import type { VaultDocument } from "@wovera/core";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +19,8 @@ import Svg, {
   Rect,
   Stop,
 } from "react-native-svg";
+import { routeCapture } from "../../assistant/gemini";
+import { AskPanel } from "../../components/AskPanel";
 import { Card } from "../../components/Card";
 import { Letter } from "../../components/Letter";
 import { Screen } from "../../components/Screen";
@@ -123,6 +126,16 @@ export default function LampScreen() {
   const [kept, setKept] = useState<VaultDocument | null>(null);
   const [saving, setSaving] = useState(false);
   const [quiet, setQuiet] = useState(false);
+  // Tell-or-ask (PB-2): the house's read of a finished capture, correctable
+  // for a beat before anything is committed.
+  const [pending, setPending] = useState<{
+    text: string;
+    audioUri: string | null;
+    read: "entry" | "question";
+  } | null>(null);
+  const [askText, setAskText] = useState<string | null>(null);
+  const [askSettled, setAskSettled] = useState(false);
+  const pendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef<ScrollView>(null);
 
   const listening = state.status === "listening" || state.status === "stopping";
@@ -173,9 +186,62 @@ export default function LampScreen() {
     }
   };
 
+  // The house reads a finished capture — telling or asking? The read must
+  // never stall the words: 1200ms cap, silence defaults to keeping. Then the
+  // correction chip shows for 2.5s before anything commits.
+  const commit = () => {
+    const p = pendingRef.current;
+    if (!p) return;
+    if (pendingTimer.current) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+    setPending(null);
+    if (p.read === "question") {
+      setAskText(p.text);
+      setAskSettled(false);
+    } else {
+      void keepEntry(p.text, p.audioUri);
+    }
+  };
+  const commitRef = useRef(commit);
+  const pendingRef = useRef(pending);
+  useEffect(() => {
+    commitRef.current = commit;
+    pendingRef.current = pending;
+  });
+
+  const settleCapture = (text: string, audioUri: string | null) => {
+    if (!text.trim()) return;
+    void (async () => {
+      let read: "entry" | "question" = "entry";
+      try {
+        const raw = await Promise.race([
+          routeCapture(text),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)),
+        ]);
+        if (raw && parseRouteResult(raw, text).kind === "question") read = "question";
+      } catch {
+        // The read failed — the words are kept, always.
+      }
+      setPending({ text, audioUri, read });
+      pendingTimer.current = setTimeout(() => commitRef.current(), 2500);
+    })();
+  };
+
+  const flipPending = () => {
+    setPending((p) => (p ? { ...p, read: p.read === "entry" ? "question" : "entry" } : p));
+    // A flip earns a fresh beat before committing.
+    if (pendingTimer.current) clearTimeout(pendingTimer.current);
+    pendingTimer.current = setTimeout(() => commitRef.current(), 2500);
+  };
+
   const onCirclePress = () => {
+    if (pending) return; // the chip's beat — let it land
     setKept(null);
     resetReply();
+    setAskText(null);
+    setAskSettled(false);
     if (!supported) {
       // Voice needs the build that carries the speech module — typing works now.
       setTyped((t) => t ?? "");
@@ -183,10 +249,10 @@ export default function LampScreen() {
     }
     if (listening) {
       stop();
-      // Save on the next tick with whatever was stitched; audio uri arrives
+      // Settle on the next tick with whatever was stitched; audio uri arrives
       // via audioend just before end — state already holds it by then.
       setTimeout(() => {
-        void keepEntry(
+        settleCapture(
           [state.finalText, state.interimText].filter(Boolean).join(" "),
           state.audioUri,
         );
@@ -203,6 +269,11 @@ export default function LampScreen() {
     lampTapRef.current = onCirclePress;
   });
   useEffect(() => onLampTap(() => lampTapRef.current()), []);
+  useEffect(() => {
+    return () => {
+      if (pendingTimer.current) clearTimeout(pendingTimer.current);
+    };
+  }, []);
 
   const displayTitle = reply.title ?? kept?.title ?? "";
   const replySettled = reply.status === "done" || reply.status === "error";
@@ -255,8 +326,29 @@ export default function LampScreen() {
         </Animated.View>
       ) : null}
 
+      {pending ? (
+        <Animated.View entering={FadeIn.duration(200)} style={styles.pendingRow}>
+          <Pressable onPress={flipPending} hitSlop={10} accessibilityRole="button">
+            <View style={[styles.pendingChip, { borderColor: theme.line }]}>
+              <Text style={[styles.pendingText, { color: theme.accentDeep }]}>
+                {pending.read === "entry" ? "Keeping as an entry ▾" : "Answering it ▾"}
+              </Text>
+            </View>
+          </Pressable>
+        </Animated.View>
+      ) : null}
+
       <View style={styles.middle}>
-        {typed === null && !kept ? (
+        {askText ? (
+          <ScrollView
+            style={styles.keptScroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ gap: space.s }}
+          >
+            <AskPanel question={askText} onDone={() => setAskSettled(true)} />
+          </ScrollView>
+        ) : null}
+        {typed === null && !kept && !askText ? (
           <Animated.View exiting={FadeOut.duration(250)} style={styles.lampWrap}>
             <TalkCircle
               onPress={onCirclePress}
@@ -351,7 +443,8 @@ export default function LampScreen() {
               <Pressable
                 onPress={() => {
                   Keyboard.dismiss();
-                  void keepEntry(typed, null);
+                  setTyped(null);
+                  settleCapture(typed, null);
                 }}
                 hitSlop={8}
                 disabled={saving || !typed.trim()}
@@ -453,11 +546,17 @@ export default function LampScreen() {
         ) : null}
       </View>
 
-      {typed === null && !listening && (!kept || replySettled) ? (
+      {typed === null &&
+      !listening &&
+      !pending &&
+      (!kept || replySettled) &&
+      (!askText || askSettled) ? (
         <Pressable
           onPress={() => {
             setKept(null);
             resetReply();
+            setAskText(null);
+            setAskSettled(false);
             setTyped("");
           }}
           hitSlop={8}
@@ -465,7 +564,7 @@ export default function LampScreen() {
           <Text style={[styles.typeInstead, { color: theme.inkFaint }]}>type instead</Text>
         </Pressable>
       ) : null}
-      {kept && replySettled ? (
+      {(kept && replySettled) || (askText && askSettled) ? (
         <Animated.Text
           entering={FadeIn.duration(400)}
           style={[styles.promise, { color: theme.inkFaint }]}
@@ -493,6 +592,14 @@ const styles = StyleSheet.create({
   greet: { fontFamily: fonts.display, fontSize: 30, lineHeight: 38 },
   sub: { fontFamily: fonts.ui, fontSize: 14, lineHeight: 21, marginTop: space.s },
   sealRow: { marginTop: space.m },
+  pendingRow: { alignItems: "center", marginTop: space.m },
+  pendingChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  pendingText: { fontFamily: fonts.uiMedium, fontSize: 13 },
   sealPress: { flexDirection: "row", alignItems: "center", gap: 12 },
   sealText: { flex: 1 },
   sealKept: { fontFamily: fonts.bodyMedium, fontSize: 16 },
