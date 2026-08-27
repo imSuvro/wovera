@@ -17,18 +17,8 @@ export function WebFrame({ children }: { children: ReactNode }) {
   if (!framed) return <>{children}</>;
 
   return (
-    <View
-      style={[
-        styles.backdrop,
-        { backgroundColor: name === "dusk" ? "#0f0d13" : "#e5ddd0" },
-      ]}
-    >
-      <View
-        style={[
-          styles.frame,
-          { backgroundColor: theme.ground, borderColor: theme.line },
-        ]}
-      >
+    <View style={[styles.backdrop, { backgroundColor: name === "dusk" ? "#0f0d13" : "#e5ddd0" }]}>
+      <View style={[styles.frame, { backgroundColor: theme.ground, borderColor: theme.line }]}>
         {children}
       </View>
     </View>

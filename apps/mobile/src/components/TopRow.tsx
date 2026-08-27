@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { fonts, space } from "../theme/tokens";
 import { useTheme } from "../theme/ThemeProvider";
@@ -23,10 +24,15 @@ const NEXT_MODE: Record<ThemeMode, ThemeMode> = { sky: "dusk", dusk: "linen", li
  */
 export function TopRow() {
   const { theme, name, mode, setMode } = useTheme();
+  const [label, setLabel] = useState(nowLabel);
+  useEffect(() => {
+    const id = setInterval(() => setLabel(nowLabel()), 30_000);
+    return () => clearInterval(id);
+  }, []);
   const tag = mode === "sky" ? name : `${name} · pinned`;
   return (
     <View style={styles.row}>
-      <Text style={[styles.text, { color: theme.inkFaint }]}>{nowLabel()}</Text>
+      <Text style={[styles.text, { color: theme.inkFaint }]}>{label}</Text>
       <Pressable
         onPress={() => setMode(NEXT_MODE[mode])}
         accessibilityRole="button"

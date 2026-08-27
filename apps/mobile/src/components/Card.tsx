@@ -20,9 +20,7 @@ export function Card({
 }) {
   const { theme } = useTheme();
   return (
-    <View
-      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line }, style]}
-    >
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line }, style]}>
       {label ? <Eyebrow>{label}</Eyebrow> : null}
       {children}
     </View>

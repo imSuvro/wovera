@@ -19,8 +19,8 @@ export default function AskScreen() {
 
       <Card label="How answers work">
         <Text style={[styles.body, { color: theme.inkSoft }]}>
-          Answers come from your own pages first — always cited, always yours. Anything beyond
-          them is clearly marked as general knowledge.
+          Answers come from your own pages first — always cited, always yours. Anything beyond them
+          is clearly marked as general knowledge.
         </Text>
       </Card>
     </Screen>

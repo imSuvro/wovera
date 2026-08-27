@@ -13,31 +13,36 @@ import {
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { ReduceMotion, ReducedMotionConfig } from "react-native-reanimated";
 import { WebFrame } from "../components/WebFrame";
+import { SweepHost } from "../theme/SweepHost";
+import type { SweepAPI } from "../theme/sweep";
 import { ThemeProvider, useTheme } from "../theme/ThemeProvider";
 
 // Keep the splash up until fonts are ready — the first painted frame is the
 // real app in the real theme, never a flash of fallback type.
 void SplashScreen.preventAutoHideAsync();
 
-function AppShell() {
+function AppShell({ sweepRef }: { sweepRef: React.Ref<SweepAPI> }) {
   const { theme, name } = useTheme();
   return (
     <WebFrame>
       <StatusBar style={name === "dusk" ? "light" : "dark"} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: theme.ground },
-        }}
-      />
+      <SweepHost ref={sweepRef}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: theme.ground },
+          }}
+        />
+      </SweepHost>
     </WebFrame>
   );
 }
 
 export default function RootLayout() {
+  const sweepRef = useRef<SweepAPI>(null);
   const [fontsLoaded] = useFonts({
     Fraunces_500Medium,
     Fraunces_600SemiBold,
@@ -56,10 +61,10 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <ThemeProvider>
+    <ThemeProvider getSweep={() => sweepRef.current}>
       {/* Honor the OS reduce-motion setting everywhere, from the first animation. */}
       <ReducedMotionConfig mode={ReduceMotion.System} />
-      <AppShell />
+      <AppShell sweepRef={sweepRef} />
     </ThemeProvider>
   );
 }
