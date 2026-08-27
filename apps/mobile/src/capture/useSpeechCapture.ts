@@ -36,6 +36,7 @@ interface SpeechModuleShape {
     stop(): void;
     requestPermissionsAsync(): Promise<{ granted: boolean }>;
     addListener(event: string, handler: (payload: never) => void): { remove(): void };
+    androidTriggerOfflineModelDownload?(options: { locale: string }): Promise<unknown>;
   };
 }
 
@@ -103,6 +104,19 @@ export function useSpeechCapture() {
         // "no-speech" during a long pause is normal — the end handler restarts.
         if (event.error === "no-speech") return;
         wantListening.current = false;
+        const raw = `${event.error ?? ""} ${event.message ?? ""}`;
+        // On-device model missing: ask Android to fetch it, say so honestly.
+        if (/not yet downloaded|language-not-supported|language_not_supported/i.test(raw)) {
+          void speech.androidTriggerOfflineModelDownload?.({ locale: "en-IN" });
+          setState((s) => ({
+            ...s,
+            status: "idle",
+            volume: 0,
+            error:
+              "Downloading the on-device voice for English (India) — give it a minute, then tap again.",
+          }));
+          return;
+        }
         setState((s) => ({
           ...s,
           status: "idle",

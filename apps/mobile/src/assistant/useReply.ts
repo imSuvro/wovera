@@ -56,10 +56,13 @@ export function useReply(vault: VaultApi | null) {
         const title = await generateTitle(entry.bodyMd);
         if (title) await vault.updateDocument(entry.ulid, { title });
       } catch (err) {
+        const code = err instanceof Error ? err.message : "";
         const message =
-          err instanceof Error && err.message === "gemini-429"
+          code === "gemini-429"
             ? "Resting a moment — your entry is already safe. Try again shortly."
-            : "The reply couldn't come through — your entry is already safe.";
+            : code === "gemini-filtered"
+              ? "The reply was cut short by the model's content filter — your entry is kept whole. Trying again usually works."
+              : "The reply couldn't come through — your entry is already safe.";
         setState((s) => ({ ...s, status: "error", error: message }));
       } finally {
         running.current = false;

@@ -22,8 +22,21 @@ export function geminiKey(): string | null {
 }
 
 interface StreamChunk {
-  candidates?: { content?: { parts?: { text?: string }[] } }[];
+  candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
 }
+
+/**
+ * A private journal writes about hard things — debt, drink, dark nights.
+ * Default mid-threshold safety filters stop replies mid-sentence on exactly
+ * the entries that matter most. Only-high keeps guardrails without muzzling
+ * the friend.
+ */
+const SAFETY_SETTINGS = [
+  "HARM_CATEGORY_HARASSMENT",
+  "HARM_CATEGORY_HATE_SPEECH",
+  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+  "HARM_CATEGORY_DANGEROUS_CONTENT",
+].map((category) => ({ category, threshold: "BLOCK_ONLY_HIGH" }));
 
 function chunkText(chunk: StreamChunk): string {
   return chunk.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
@@ -43,7 +56,8 @@ export async function streamReply(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: GENTLE_SYSTEM_PROMPT }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+      safetySettings: SAFETY_SETTINGS,
     }),
   });
   if (!res.ok) throw new Error(`gemini-${res.status}`);
@@ -54,22 +68,34 @@ export async function streamReply(
   let buffer = "";
   let text = "";
   let lastFlush = 0;
+  let finishReason: string | null = null;
+
+  // Proper SSE: events end on a blank line; an event's data may span
+  // multiple `data:` lines that concatenate. Parsing per-event (not
+  // per-line) means a JSON payload can never be split and silently lost.
+  const handleEvent = (rawEvent: string) => {
+    const data = rawEvent
+      .split(/\r?\n/)
+      .filter((l) => l.startsWith("data:"))
+      .map((l) => l.slice(5).trim())
+      .join("");
+    if (!data || data === "[DONE]") return;
+    try {
+      const chunk = JSON.parse(data) as StreamChunk;
+      text += chunkText(chunk);
+      finishReason = chunk.candidates?.[0]?.finishReason ?? finishReason;
+    } catch {
+      if (__DEV__) console.warn("gemini: unparseable SSE event", data.slice(0, 120));
+    }
+  };
+
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      const payload = line.slice(6).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        text += chunkText(JSON.parse(payload) as StreamChunk);
-      } catch {
-        // partial JSON across SSE frames — rare with line-delimited SSE; skip
-      }
-    }
+    const events = buffer.split(/\r?\n\r?\n/);
+    buffer = events.pop() ?? "";
+    for (const event of events) handleEvent(event);
     // ~50ms flush window: streaming feel without re-render storms (perf pillar).
     const now = Date.now();
     if (now - lastFlush > 50) {
@@ -77,7 +103,14 @@ export async function streamReply(
       onDelta(text);
     }
   }
+  if (buffer.trim()) handleEvent(buffer);
   onDelta(text);
+
+  if (__DEV__) console.log(`gemini reply: ${text.length} chars, finish=${finishReason}`);
+  if (finishReason && finishReason !== "STOP" && finishReason !== "MAX_TOKENS") {
+    // The model was stopped by a filter mid-thought. Be honest about it.
+    throw new Error("gemini-filtered");
+  }
   return text.trim();
 }
 
