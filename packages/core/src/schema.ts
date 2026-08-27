@@ -21,6 +21,8 @@ export const documents = sqliteTable("documents", {
   audioUri: text("audio_uri"),
   /** The assistant's reply — beside the entry, never inside the verbatim body. */
   replyMd: text("reply_md"),
+  /** Threads with a clock: when this document should resurface (ms epoch). */
+  remindAt: integer("remind_at"),
 });
 
 export const links = sqliteTable(

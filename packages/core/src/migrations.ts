@@ -108,6 +108,11 @@ END;
     // user's verbatim body. Citations ride the links table (kind 'reply').
     sql: `ALTER TABLE documents ADD COLUMN reply_md TEXT;`,
   },
+  {
+    version: 4,
+    // A thread with a clock: quick-capture reminders resurface at this time.
+    sql: `ALTER TABLE documents ADD COLUMN remind_at INTEGER;`,
+  },
 ];
 
 /** Applies pending migrations. Safe to call on every app start. */

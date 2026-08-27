@@ -37,6 +37,8 @@ export interface VaultDocument {
   audioUri?: string | null;
   /** The assistant's reply — beside the entry, never inside the verbatim body. */
   replyMd?: string | null;
+  /** Threads with a clock: when this document should resurface (ms epoch). */
+  remindAt?: number | null;
 }
 
 export const CORE_VERSION = "0.0.1";
@@ -54,10 +56,14 @@ export { extractWikilinks } from "./wikilinks";
 export { buildReplyContext, significantTerms } from "./assistant/context";
 export type { ReplyContext } from "./assistant/context";
 export {
+  ASK_SYSTEM_PROMPT,
   GENTLE_SYSTEM_PROMPT,
+  ROUTE_SYSTEM_PROMPT,
   TITLE_SYSTEM_PROMPT,
   WRITEBACK_SYSTEM_PROMPT,
 } from "./assistant/prompts";
+export { applyRoute, listThreads, localStampToMs, parseRouteResult } from "./assistant/routing";
+export type { AppliedRoute, RouteResult } from "./assistant/routing";
 export {
   MAX_WRITEBACKS,
   applyWriteback,

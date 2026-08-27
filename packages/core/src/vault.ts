@@ -48,6 +48,7 @@ export interface VaultApi {
     /** Historical creation time (importer); defaults to now. */
     createdAt?: number;
     audioUri?: string | null;
+    remindAt?: number | null;
     ledger?: { kind: LedgerKind; summary: string };
   }): Promise<VaultDocument>;
   updateDocument(
@@ -144,6 +145,7 @@ export class SqliteVault implements VaultApi {
     shelf?: string | null;
     createdAt?: number;
     audioUri?: string | null;
+    remindAt?: number | null;
     ledger?: { kind: LedgerKind; summary: string };
   }): Promise<VaultDocument> {
     const ts = input.createdAt ?? this.now();
@@ -158,6 +160,7 @@ export class SqliteVault implements VaultApi {
       updatedAt: ts,
       audioUri: input.audioUri ?? null,
       replyMd: null,
+      remindAt: input.remindAt ?? null,
     };
     await this.db.insert(documents).values({ ...doc, hlc });
     await this.writeLinks(doc);
@@ -342,6 +345,7 @@ function toDoc(row: {
   updatedAt: number;
   audioUri?: string | null;
   replyMd?: string | null;
+  remindAt?: number | null;
 }): VaultDocument {
   return {
     ulid: row.ulid,
@@ -353,5 +357,6 @@ function toDoc(row: {
     updatedAt: row.updatedAt,
     audioUri: row.audioUri ?? null,
     replyMd: row.replyMd ?? null,
+    remindAt: row.remindAt ?? null,
   };
 }

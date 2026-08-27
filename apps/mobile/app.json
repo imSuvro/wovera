@@ -44,7 +44,8 @@
           "speechRecognitionPermission": "Wovera turns your speech into text on this device. Your words are kept exactly.",
           "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

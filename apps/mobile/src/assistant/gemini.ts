@@ -1,5 +1,10 @@
 import { fetch as expoFetch } from "expo/fetch";
-import { GENTLE_SYSTEM_PROMPT, TITLE_SYSTEM_PROMPT, WRITEBACK_SYSTEM_PROMPT } from "@wovera/core";
+import {
+  GENTLE_SYSTEM_PROMPT,
+  ROUTE_SYSTEM_PROMPT,
+  TITLE_SYSTEM_PROMPT,
+  WRITEBACK_SYSTEM_PROMPT,
+} from "@wovera/core";
 
 /**
  * Gemini client. Dev runs on the free tier with the key from .env
@@ -46,6 +51,7 @@ export async function streamReply(
   userPrompt: string,
   onDelta: (soFar: string) => void,
   signal?: AbortSignal,
+  systemPrompt: string = GENTLE_SYSTEM_PROMPT,
 ): Promise<string> {
   const key = geminiKey();
   if (!key) throw new Error("no-key");
@@ -54,7 +60,7 @@ export async function streamReply(
     headers: { "Content-Type": "application/json" },
     signal,
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: GENTLE_SYSTEM_PROMPT }] },
+      systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
       safetySettings: SAFETY_SETTINGS,
@@ -131,6 +137,39 @@ export async function proposeWritebacks(userPrompt: string): Promise<string | nu
           responseMimeType: "application/json",
         },
         safetySettings: SAFETY_SETTINGS,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as StreamChunk;
+    return chunkText(data) || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Quick-capture routing — cheapest model, JSON out, current time provided. */
+export async function routeCapture(captureText: string): Promise<string | null> {
+  const key = geminiKey();
+  if (!key) return null;
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  try {
+    const res = await expoFetch(`${BASE}/${TITLE_MODEL}:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: ROUTE_SYSTEM_PROMPT }] },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: `Current local datetime: ${stamp}\n\nCapture: ${captureText}` }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 256,
+          responseMimeType: "application/json",
+        },
       }),
     });
     if (!res.ok) return null;
