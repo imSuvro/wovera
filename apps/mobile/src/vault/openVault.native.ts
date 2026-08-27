@@ -2,8 +2,15 @@ import { SqliteVault, runMigrations } from "@wovera/core";
 import type { VaultApi, VaultDb } from "@wovera/core";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { openDatabaseSync } from "expo-sqlite";
+import { Platform } from "react-native";
 import { newUlid as ulid } from "@wovera/core";
 import { seedExampleVault } from "./seed";
+
+/** Same-origin on web (served beside the app); USB bridge on device. */
+const SNAPSHOT_URL =
+  Platform.OS === "web"
+    ? "/vault-import.local.json"
+    : "http://localhost:8317/vault-import.local.json";
 
 /**
  * Native vault: expo-sqlite in WAL mode, core migrations, a persistent
@@ -36,7 +43,11 @@ async function openVaultOnce(): Promise<VaultApi> {
   // No options: enableChangeListener spins up native machinery we don't use
   // yet, and was implicated in initSync NPEs on Android dev-client reloads.
   const raw = openDatabaseSync("wovera.db");
-  raw.execSync("PRAGMA journal_mode = WAL;");
+  try {
+    raw.execSync("PRAGMA journal_mode = WAL;");
+  } catch {
+    // OPFS on web manages its own journaling; WAL is a native nicety.
+  }
   await runMigrations({
     exec: (sql) => raw.execSync(sql),
     getUserVersion: () =>
@@ -54,7 +65,8 @@ async function openVaultOnce(): Promise<VaultApi> {
   if ((await vault.countDocuments()) === 0) {
     if (!(__DEV__ && (await loadDevSnapshot(vault)))) await seedExampleVault(vault);
   }
-  if (__DEV__) console.log(`vault ready: ${await vault.countDocuments()} documents`);
+  if (__DEV__)
+    console.log(`vault ready (${Platform.OS}-sqlite): ${await vault.countDocuments()} documents`);
   return vault;
 }
 
@@ -65,7 +77,7 @@ async function openVaultOnce(): Promise<VaultApi> {
  */
 async function loadDevSnapshot(vault: SqliteVault): Promise<boolean> {
   try {
-    const res = await fetch("http://localhost:8317/vault-import.local.json");
+    const res = await fetch(SNAPSHOT_URL);
     if (!res.ok) return false;
     const data = (await res.json()) as {
       documents: {

@@ -13,6 +13,8 @@ export default tseslint.config(
       "apps/mobile/android/",
       "apps/mobile/ios/",
       "**/expo-env.d.ts",
+      "**/metro.config.js", // CommonJS build tooling — Node globals by design
+      "**/dist/",
     ],
   },
   eslint.configs.recommended,

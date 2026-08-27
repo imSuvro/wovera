@@ -13,23 +13,35 @@ interface Snapshot {
   ledger: { ts: number; kind: LedgerKind; summary: string }[];
 }
 
-/**
- * Web vault: in-memory until expo-sqlite's web (WASM/OPFS) support graduates
- * from alpha — Phase 7 of the build plan faces that risk deliberately.
- *
- * Dev nicety: if an importer snapshot exists (vault-import.local.json in
- * public/ — gitignored, local machine only), it becomes the vault, so the
- * real thing is browsable in a browser before the phone build exists.
- */
 let vaultPromise: Promise<VaultApi> | null = null;
 
-/** Singleton for symmetry with native — survives fast refresh remounts. */
+/**
+ * Web vault — the Phase 7 experiment, faced.
+ *
+ * First choice: REAL SQLite. expo-sqlite's web build runs the engine in a
+ * WASM worker with OPFS persistence, and its synchronous API works when
+ * COOP/COEP headers grant SharedArrayBuffer (public/serve.json sets them).
+ * When that holds, web runs the exact same vault code as the phone —
+ * migrations, FTS5, ledger triggers, everything, persistent across reloads.
+ *
+ * Fallback: the in-memory vault with the dev snapshot, as before — for
+ * browsers or hosts where the headers or OPFS aren't available.
+ */
 export function openVault(): Promise<VaultApi> {
-  vaultPromise ??= openVaultOnce();
+  vaultPromise ??= (async () => {
+    try {
+      const sqlite = await import("./openVault.native");
+      const vault = await sqlite.openVault();
+      return vault;
+    } catch (err) {
+      console.warn("web sqlite unavailable — memory vault fallback:", err);
+      return openMemoryVault();
+    }
+  })();
   return vaultPromise;
 }
 
-async function openVaultOnce(): Promise<VaultApi> {
+async function openMemoryVault(): Promise<VaultApi> {
   const vault = new MemoryVault();
   const snapshot = await loadLocalSnapshot();
   if (!snapshot) {
