@@ -10,7 +10,9 @@ import { seedExampleVault } from "./seed";
  * device id for the HLC, and example seed on first open.
  */
 export async function openVault(): Promise<VaultApi> {
-  const raw = openDatabaseSync("wovera.db", { enableChangeListener: true });
+  // No options: enableChangeListener spins up native machinery we don't use
+  // yet, and was implicated in initSync NPEs on Android dev-client reloads.
+  const raw = openDatabaseSync("wovera.db");
   raw.execSync("PRAGMA journal_mode = WAL;");
   await runMigrations({
     exec: (sql) => raw.execSync(sql),
@@ -29,6 +31,7 @@ export async function openVault(): Promise<VaultApi> {
   if ((await vault.countDocuments()) === 0) {
     if (!(__DEV__ && (await loadDevSnapshot(vault)))) await seedExampleVault(vault);
   }
+  if (__DEV__) console.log(`vault ready: ${await vault.countDocuments()} documents`);
   return vault;
 }
 
