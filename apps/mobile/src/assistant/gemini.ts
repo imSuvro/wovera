@@ -18,8 +18,17 @@ import {
  */
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const REPLY_MODEL = "gemini-2.5-flash";
-const TITLE_MODEL = "gemini-2.5-flash-lite";
+// The 2.5 generation is being retired for new keys (2.5-flash-lite now 404s,
+// 2.5-flash starves on quota) — the house runs on 3.5.
+const REPLY_MODEL = "gemini-3.5-flash";
+const TITLE_MODEL = "gemini-3.5-flash-lite";
+/**
+ * Gemma rides a separate free-tier pool — the spare lamp for the cheap
+ * mechanical jobs (titles, routing) when Gemini is resting. It rejects
+ * systemInstruction and likes to think out loud, so the fallback path
+ * folds the system prompt into the user text and sanitizes the output.
+ */
+const FALLBACK_MODEL = "gemma-4-26b-a4b-it";
 
 export function geminiKey(): string | null {
   const key = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
@@ -148,30 +157,40 @@ export async function proposeWritebacks(userPrompt: string): Promise<string | nu
   }
 }
 
-/** Quick-capture routing — cheapest model, JSON out, current time provided. */
-export async function routeCapture(captureText: string): Promise<string | null> {
-  const key = geminiKey();
-  if (!key) return null;
-  const d = new Date();
-  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+interface QuietConfig {
+  temperature: number;
+  maxOutputTokens: number;
+  json?: boolean;
+}
+
+/** One quiet generateContent call. Returns text, or null on any failure. */
+async function quietCall(
+  model: string,
+  systemPrompt: string,
+  userText: string,
+  cfg: QuietConfig,
+  key: string,
+): Promise<string | null> {
+  const isGemma = model.startsWith("gemma");
+  const body: Record<string, unknown> = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: isGemma ? `${systemPrompt}\n\n---\n\n${userText}` : userText }],
+      },
+    ],
+    generationConfig: {
+      temperature: cfg.temperature,
+      maxOutputTokens: cfg.maxOutputTokens,
+      ...(cfg.json && !isGemma ? { responseMimeType: "application/json" } : {}),
+    },
+  };
+  if (!isGemma) body.systemInstruction = { parts: [{ text: systemPrompt }] };
   try {
-    const res = await expoFetch(`${BASE}/${TITLE_MODEL}:generateContent?key=${key}`, {
+    const res = await expoFetch(`${BASE}/${model}:generateContent?key=${key}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: ROUTE_SYSTEM_PROMPT }] },
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: `Current local datetime: ${stamp}\n\nCapture: ${captureText}` }],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 256,
-          responseMimeType: "application/json",
-        },
-      }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as StreamChunk;
@@ -181,26 +200,47 @@ export async function routeCapture(captureText: string): Promise<string | null> 
   }
 }
 
-export async function generateTitle(entryBody: string): Promise<string | null> {
+/** Primary model first; Gemma's separate pool when Gemini is resting. */
+async function quietCallWithFallback(
+  systemPrompt: string,
+  userText: string,
+  cfg: QuietConfig,
+): Promise<string | null> {
   const key = geminiKey();
   if (!key) return null;
-  try {
-    const res = await expoFetch(`${BASE}/${TITLE_MODEL}:generateContent?key=${key}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: TITLE_SYSTEM_PROMPT }] },
-        contents: [{ role: "user", parts: [{ text: entryBody.slice(0, 4000) }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 128 },
-      }),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as StreamChunk;
-    const title = chunkText(data)
-      .trim()
-      .replace(/^["']|["'.]$/g, "");
-    return title && title.length <= 60 ? title : null;
-  } catch {
-    return null;
-  }
+  const primary = await quietCall(TITLE_MODEL, systemPrompt, userText, cfg, key);
+  if (primary) return primary;
+  return quietCall(FALLBACK_MODEL, systemPrompt, userText, cfg, key);
+}
+
+/** Quick-capture routing — cheapest model, JSON out, current time provided. */
+export async function routeCapture(captureText: string): Promise<string | null> {
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const raw = await quietCallWithFallback(
+    ROUTE_SYSTEM_PROMPT,
+    `Current local datetime: ${stamp}\n\nCapture: ${captureText}`,
+    { temperature: 0.1, maxOutputTokens: 256, json: true },
+  );
+  if (!raw) return null;
+  // Gemma narrates before answering — hand the parser just the JSON object.
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  return jsonMatch ? jsonMatch[0] : raw;
+}
+
+export async function generateTitle(entryBody: string): Promise<string | null> {
+  const raw = await quietCallWithFallback(TITLE_SYSTEM_PROMPT, entryBody.slice(0, 4000), {
+    temperature: 0.4,
+    maxOutputTokens: 128,
+  });
+  if (!raw) return null;
+  // The title is the LAST non-empty line — reasoning-happy models put the
+  // answer at the end; for Gemini it's the only line anyway.
+  const lines = raw
+    .trim()
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const title = (lines[lines.length - 1] ?? "").replace(/^["'*#\s]+|["'*.\s]+$/g, "");
+  return title && title.length <= 60 ? title : null;
 }
