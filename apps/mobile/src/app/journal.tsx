@@ -1,3 +1,4 @@
+import { parsePccEntry } from "@wovera/core";
 import type { VaultDocument } from "@wovera/core";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -10,9 +11,16 @@ import { fonts, space } from "../theme/tokens";
 import { useTheme } from "../theme/ThemeProvider";
 import { useVault } from "../vault/VaultProvider";
 
-/** First words of the entry — the verbatim voice, as its own preview. */
+/**
+ * The entry's own first words as its preview — but a transcript previews
+ * its summary (or first spoken words), never its filing scaffold.
+ */
 function preview(bodyMd: string): string {
-  const text = bodyMd.replace(/^#.*$/gm, "").replace(/\s+/g, " ").trim();
+  const parsed = parsePccEntry(bodyMd);
+  const source = parsed
+    ? (parsed.summary ?? parsed.turns[0]?.text ?? "")
+    : bodyMd.replace(/^#.*$/gm, "").replace(/^Date:.*$/gm, "");
+  const text = source.replace(/\s+/g, " ").trim();
   return text.length > 110 ? `${text.slice(0, 110)}…` : text;
 }
 

@@ -1,8 +1,10 @@
-import type { VaultDocument } from "@wovera/core";
+import { parsePccEntry } from "@wovera/core";
+import type { PccEntry, VaultDocument } from "@wovera/core";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Card } from "../../components/Card";
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
+import { Letter } from "../../components/Letter";
 import { MarkdownBody } from "../../components/MarkdownBody";
 import { PersonMark } from "../../components/PersonMark";
 import { Screen } from "../../components/Screen";
@@ -11,10 +13,20 @@ import { fonts, space } from "../../theme/tokens";
 import { useTheme } from "../../theme/ThemeProvider";
 import { useVault } from "../../vault/VaultProvider";
 
+/** "2026-08-26" → "26 Aug 2026", or the raw value when it won't parse. */
+function readableDate(raw: string): string {
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? shortDate(ms) : raw;
+}
+
 /**
- * A page from the vault — journal entry, wiki page, or person. The book
- * voice, a provenance line, tappable wikilinks, and "linked from" at the
- * bottom so the graph is walkable in both directions.
+ * A page from the vault — and for journal transcripts, a reading room
+ * (Pattern Book, Plate VII). The parser reads the shape, never trusts it:
+ * entries in the vault's transcript form are decomposed into a date
+ * eyebrow, an italic summary lede, the user's words on the ground in the
+ * book voice, and the assistant's old replies wearing the Letter. Anything
+ * else takes the generic path — which, after the typographic upgrade,
+ * also reads like a book. Raw scaffolding never reaches the reader's eye.
  */
 export default function PageScreen() {
   const { theme } = useTheme();
@@ -57,10 +69,15 @@ export default function PageScreen() {
     });
   };
 
-  const provenance = doc
+  const parsed: PccEntry | null = doc && doc.type === "journal" ? parsePccEntry(doc.bodyMd) : null;
+  const repliedWhen = parsed?.date ? readableDate(parsed.date) : null;
+
+  const eyebrow = doc
     ? doc.type === "journal"
-      ? `written ${shortDate(doc.createdAt)}`
-      : `last tended ${shortDate(doc.updatedAt)}${doc.shelf ? ` · ${doc.shelf}` : ""}`
+      ? `JOURNAL · ${parsed?.date ? readableDate(parsed.date) : shortDate(doc.createdAt)}${doc.audioUri ? " · SPOKEN" : ""}`
+      : doc.type === "person"
+        ? `PEOPLE · MET ${shortDate(doc.createdAt)}`
+        : `${(doc.shelf ?? "THE SHELVES").toUpperCase()} · LAST TENDED ${shortDate(doc.updatedAt)}`
     : "";
 
   return (
@@ -69,24 +86,49 @@ export default function PageScreen() {
         <Text style={[styles.back, { color: theme.inkFaint }]}>‹ Back</Text>
       </Pressable>
       {missing ? (
-        <Card>
-          <Text style={[styles.missing, { color: theme.inkSoft }]}>
-            This page isn't in the vault. It may not have been written yet.
-          </Text>
-        </Card>
+        <Text style={[styles.missing, { color: theme.inkSoft }]}>
+          This page isn't in the vault. It may not have been written yet.
+        </Text>
       ) : doc ? (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-          {doc.type === "person" ? (
-            <View style={styles.personHeader}>
-              <PersonMark name={doc.title} size={52} />
-            </View>
-          ) : null}
-          <Text style={[styles.title, { color: theme.ink }]}>{doc.title}</Text>
-          <Text style={[styles.provenance, { color: theme.inkFaint }]}>{provenance}</Text>
-          <MarkdownBody bodyMd={doc.bodyMd} onWikilink={openByTitle} />
-          {doc.replyMd ? (
-            <View style={styles.replyBlock}>
-              <Card label="Wovera replied">
+        <View style={styles.readerWrap}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+            {doc.type === "person" ? (
+              <View style={styles.personHeader}>
+                <PersonMark name={doc.title} size={52} />
+              </View>
+            ) : null}
+            <Text style={[styles.eyebrow, { color: theme.accentDeep }]}>{eyebrow}</Text>
+            <Text style={[styles.title, { color: theme.ink }]}>{doc.title}</Text>
+
+            {parsed ? (
+              <>
+                {parsed.summary ? (
+                  <Text style={[styles.lede, { color: theme.inkSoft }]}>{parsed.summary}</Text>
+                ) : null}
+                {parsed.turns.map((turn, i) =>
+                  turn.speaker === "user" ? (
+                    <Text key={i} style={[styles.turn, { color: theme.ink }]}>
+                      {turn.text}
+                    </Text>
+                  ) : (
+                    <Letter
+                      key={i}
+                      label={`Wovera replied${repliedWhen ? ` · ${repliedWhen}` : ""}`}
+                      style={styles.turnLetter}
+                    >
+                      <Text style={[styles.letterBody, { color: theme.ink }]}>{turn.text}</Text>
+                    </Letter>
+                  ),
+                )}
+              </>
+            ) : (
+              <View style={styles.bodyBlock}>
+                <MarkdownBody bodyMd={doc.bodyMd} onWikilink={openByTitle} />
+              </View>
+            )}
+
+            {doc.replyMd ? (
+              <Letter label="Wovera replied" style={styles.turnLetter}>
                 <MarkdownBody bodyMd={doc.replyMd} onWikilink={openByTitle} />
                 {replySources.length > 0 ? (
                   <View style={styles.chipRow}>
@@ -104,12 +146,12 @@ export default function PageScreen() {
                     ))}
                   </View>
                 ) : null}
-              </Card>
-            </View>
-          ) : null}
-          {backlinks.length > 0 ? (
-            <View style={styles.backlinksBlock}>
-              <Card label="Linked from">
+              </Letter>
+            ) : null}
+
+            {backlinks.length > 0 ? (
+              <View style={styles.backlinksBlock}>
+                <Text style={[styles.linkedEyebrow, { color: theme.inkFaint }]}>LINKED FROM</Text>
                 {backlinks.map((b) => (
                   <Pressable
                     key={b.ulid}
@@ -122,10 +164,22 @@ export default function PageScreen() {
                     </Text>
                   </Pressable>
                 ))}
-              </Card>
-            </View>
-          ) : null}
-        </ScrollView>
+              </View>
+            ) : null}
+          </ScrollView>
+          {/* Long reads stay soft-edged: the top of the scroll fades to ground. */}
+          <View style={styles.topFade} pointerEvents="none">
+            <Svg width="100%" height="24">
+              <Defs>
+                <SvgLinearGradient id="pagefade" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={theme.ground} stopOpacity={1} />
+                  <Stop offset="1" stopColor={theme.ground} stopOpacity={0} />
+                </SvgLinearGradient>
+              </Defs>
+              <Rect width="100%" height="24" fill="url(#pagefade)" />
+            </Svg>
+          </View>
+        </View>
       ) : null}
     </Screen>
   );
@@ -135,27 +189,44 @@ const styles = StyleSheet.create({
   back: {
     fontFamily: fonts.uiMedium,
     fontSize: 14,
-    marginBottom: space.m,
+    marginBottom: space.s,
+  },
+  readerWrap: { flex: 1 },
+  eyebrow: {
+    fontFamily: fonts.uiBold,
+    fontSize: 10.5,
+    letterSpacing: 1.4,
+    marginBottom: 6,
   },
   title: {
     fontFamily: fonts.display,
     fontSize: 28,
     lineHeight: 36,
+    marginBottom: space.s,
   },
-  provenance: {
-    fontFamily: fonts.ui,
-    fontSize: 12,
-    letterSpacing: 0.4,
-    marginTop: 4,
+  lede: {
+    fontFamily: fonts.bodyItalic,
+    fontSize: 15,
+    lineHeight: 24,
     marginBottom: space.m,
   },
-  scroll: { paddingBottom: space.xxl },
+  turn: {
+    fontFamily: fonts.body,
+    fontSize: 17,
+    lineHeight: 28,
+    marginBottom: space.m,
+  },
+  turnLetter: { marginBottom: space.m },
+  letterBody: { fontFamily: fonts.body, fontSize: 16, lineHeight: 26 },
+  bodyBlock: { marginBottom: space.s },
+  scroll: { paddingTop: 24, paddingBottom: space.xxl },
+  topFade: { position: "absolute", top: 0, left: 0, right: 0, height: 24 },
   personHeader: { marginBottom: space.s },
-  replyBlock: { marginTop: space.l },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: space.s },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   chipText: { fontFamily: fonts.uiMedium, fontSize: 12 },
-  backlinksBlock: { marginTop: space.l },
+  backlinksBlock: { marginTop: space.m },
+  linkedEyebrow: { fontFamily: fonts.uiBold, fontSize: 11, letterSpacing: 1.4, marginBottom: 4 },
   backlinkRow: { paddingVertical: 8 },
   backlinkTitle: { fontFamily: fonts.bodyMedium, fontSize: 15 },
   missing: { fontFamily: fonts.ui, fontSize: 14, lineHeight: 21 },
