@@ -21,7 +21,15 @@ interface Snapshot {
  * public/ — gitignored, local machine only), it becomes the vault, so the
  * real thing is browsable in a browser before the phone build exists.
  */
-export async function openVault(): Promise<VaultApi> {
+let vaultPromise: Promise<VaultApi> | null = null;
+
+/** Singleton for symmetry with native — survives fast refresh remounts. */
+export function openVault(): Promise<VaultApi> {
+  vaultPromise ??= openVaultOnce();
+  return vaultPromise;
+}
+
+async function openVaultOnce(): Promise<VaultApi> {
   const vault = new MemoryVault();
   const snapshot = await loadLocalSnapshot();
   if (!snapshot) {

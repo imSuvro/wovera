@@ -9,7 +9,30 @@ import { seedExampleVault } from "./seed";
  * Native vault: expo-sqlite in WAL mode, core migrations, a persistent
  * device id for the HLC, and example seed on first open.
  */
-export async function openVault(): Promise<VaultApi> {
+/**
+ * Singleton: fast refresh remounts the provider on every save, and each
+ * remount used to open ANOTHER native connection — stacked handles
+ * eventually NPE inside expo-sqlite. One open per JS runtime, reused.
+ */
+let vaultPromise: Promise<VaultApi> | null = null;
+
+export function openVault(): Promise<VaultApi> {
+  if (!vaultPromise) {
+    vaultPromise = openVaultOnce().catch(async (err) => {
+      // One retry on a fresh handle — the native layer can be mid-teardown
+      // right after a reload. A second failure is real; surface it.
+      if (__DEV__) console.warn("vault open retrying after:", err);
+      await new Promise((r) => setTimeout(r, 300));
+      return openVaultOnce();
+    });
+    vaultPromise.catch(() => {
+      vaultPromise = null; // allow a later attempt instead of caching failure
+    });
+  }
+  return vaultPromise;
+}
+
+async function openVaultOnce(): Promise<VaultApi> {
   // No options: enableChangeListener spins up native machinery we don't use
   // yet, and was implicated in initSync NPEs on Android dev-client reloads.
   const raw = openDatabaseSync("wovera.db");
