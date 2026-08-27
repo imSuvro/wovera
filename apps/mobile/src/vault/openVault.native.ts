@@ -26,6 +26,50 @@ export async function openVault(): Promise<VaultApi> {
     raw.runSync("INSERT INTO settings (key, value) VALUES ('device_id', ?)", [deviceId]);
   }
   const vault = new SqliteVault(drizzle(raw) as unknown as VaultDb, deviceId);
-  if ((await vault.countDocuments()) === 0) await seedExampleVault(vault);
+  if ((await vault.countDocuments()) === 0) {
+    if (!(__DEV__ && (await loadDevSnapshot(vault)))) await seedExampleVault(vault);
+  }
   return vault;
+}
+
+/**
+ * Dev-only: on first open, try the importer snapshot served by the local
+ * static server (reachable over USB via `adb reverse tcp:8317 tcp:8317`).
+ * Real users never hit this path; production first-open seeds examples.
+ */
+async function loadDevSnapshot(vault: SqliteVault): Promise<boolean> {
+  try {
+    const res = await fetch("http://localhost:8317/vault-import.local.json");
+    if (!res.ok) return false;
+    const data = (await res.json()) as {
+      documents: {
+        type: "journal" | "wiki" | "person" | "thread";
+        title: string;
+        bodyMd: string;
+        shelf: string | null;
+        createdAt?: number;
+      }[];
+      ledger: {
+        ts: number;
+        kind: "journal" | "held" | "woven" | "tidy" | "rule";
+        summary: string;
+      }[];
+    };
+    if (!Array.isArray(data.documents)) return false;
+    for (const row of data.ledger)
+      await vault.appendLedger(row.kind, row.summary, undefined, row.ts);
+    for (const doc of data.documents) {
+      await vault.createDocument({
+        type: doc.type,
+        title: doc.title,
+        bodyMd: doc.bodyMd,
+        shelf: doc.shelf,
+        createdAt: doc.createdAt,
+        ledger: { kind: "woven", summary: `Imported: ${doc.title}` },
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }

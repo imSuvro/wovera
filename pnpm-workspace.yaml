@@ -29,3 +29,6 @@ minimumReleaseAgeExclude:
   - expo-system-ui@57.0.3
   - expo@57.0.17
   - expo-sqlite@57.0.2
+  - expo-dev-client@57.0.16
+  - expo-dev-launcher@57.0.16
+  - expo-dev-menu@57.0.16
