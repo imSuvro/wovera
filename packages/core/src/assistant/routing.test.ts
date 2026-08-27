@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { MemoryVault } from "../memoryVault";
-import { applyRoute, listThreads, localStampToMs, parseRouteResult } from "./routing";
+import {
+  applyRoute,
+  isQuestionShaped,
+  listThreads,
+  localStampToMs,
+  parseRouteResult,
+} from "./routing";
 
 describe("parseRouteResult", () => {
   it("parses reminders with valid local stamps", () => {
@@ -18,6 +24,46 @@ describe("parseRouteResult", () => {
     ).toBe("note");
     expect(parseRouteResult('{"kind":"person","title":"Someone"}', "f").kind).toBe("note");
     expect(parseRouteResult("not json at all", "my capture text").title).toBe("my capture text");
+  });
+
+  it("accepts question routes with a title and nulled extras", () => {
+    const r = parseRouteResult(
+      '{"kind":"question","title":"What did I write about debt"}',
+      "fallback",
+    );
+    expect(r).toEqual({
+      kind: "question",
+      title: "What did I write about debt",
+      remindAtLocal: null,
+      personName: null,
+    });
+  });
+
+  it("degrades malformed question JSON to a note", () => {
+    const r = parseRouteResult('{"kind":"question","title":', "what did I write about debt?");
+    expect(r.kind).toBe("note");
+    expect(r.title).toBe("what did I write about debt?");
+  });
+});
+
+describe("isQuestionShaped", () => {
+  it("is true for question-shaped captures", () => {
+    expect(isQuestionShaped("What did I write about debt?")).toBe(true);
+    expect(isQuestionShaped("how do I set up reminders")).toBe(true);
+    expect(isQuestionShaped("is this working")).toBe(true);
+    expect(isQuestionShaped("Call Ma at 7?")).toBe(true); // trailing "?" wins
+    expect(isQuestionShaped("Who is Rahul")).toBe(true);
+    expect(isQuestionShaped("  WHERE did the receipts go  ")).toBe(true);
+  });
+
+  it("is false for statements, including interrogative-prefixed words", () => {
+    expect(isQuestionShaped("Call Ma at 7 pm")).toBe(false);
+    expect(isQuestionShaped("Remember the milk")).toBe(false);
+    // "whatever" must not match the "what" opener — word boundaries matter.
+    expect(isQuestionShaped("Whatever happens, keep going")).toBe(false);
+    expect(isQuestionShaped("Willpower is a muscle")).toBe(false);
+    expect(isQuestionShaped("")).toBe(false);
+    expect(isQuestionShaped("   ")).toBe(false);
   });
 });
 
@@ -71,6 +117,20 @@ describe("applyRoute", () => {
     expect(page?.bodyMd).toContain("visiting in October");
     const restoreRow = (await vault.listLedger()).find((r) => r.diffRef);
     expect(restoreRow).toBeDefined();
+  });
+
+  it("defensively files a question route exactly like a note", async () => {
+    const vault = new MemoryVault();
+    const applied = await applyRoute(vault, "what did I write about debt?", {
+      kind: "question",
+      title: "What did I write about debt",
+      remindAtLocal: null,
+      personName: null,
+    });
+    expect(applied.kind).toBe("note");
+    expect(applied.doc.type).toBe("thread");
+    expect(applied.chip).toBe("Held as a thread");
+    expect(applied.remindAtMs).toBeNull();
   });
 
   it("lists threads soonest-clock-first", async () => {

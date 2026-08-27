@@ -62,7 +62,13 @@ export {
   TITLE_SYSTEM_PROMPT,
   WRITEBACK_SYSTEM_PROMPT,
 } from "./assistant/prompts";
-export { applyRoute, listThreads, localStampToMs, parseRouteResult } from "./assistant/routing";
+export {
+  applyRoute,
+  isQuestionShaped,
+  listThreads,
+  localStampToMs,
+  parseRouteResult,
+} from "./assistant/routing";
 export type { AppliedRoute, RouteResult } from "./assistant/routing";
 export {
   createRecovery,

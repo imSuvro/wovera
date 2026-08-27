@@ -23,10 +23,11 @@ You receive the entry, the reply, and the vault's existing pages (titles by shel
 Prefer updating an existing page over creating a new one. Never invent facts. Never quote the entry at length — distill. An empty array [] is a good and common answer: most entries hold nothing durable, and restraint is part of the trust.`;
 
 export const ROUTE_SYSTEM_PROMPT = `You route quick captures for a second brain. Given the current local datetime and a short capture, respond with ONLY JSON (no prose, no fences):
-{"kind": "reminder" | "person" | "note", "title": "short display title, 2-8 words", "remindAtLocal": "YYYY-MM-DD HH:mm" or null, "personName": "Name" or null}
+{"kind": "reminder" | "person" | "note" | "question", "title": "short display title, 2-8 words", "remindAtLocal": "YYYY-MM-DD HH:mm" or null, "personName": "Name" or null}
 
 - reminder: the capture asks to be resurfaced at a time ("call Ma in two hours", "pay rent on the 1st"). Compute remindAtLocal from the given current datetime. If no time can be determined, use kind "note".
 - person: the capture is about a person they met or know ("met Rahul, designer from Pune, number ends 4421"). personName is the person's name as given.
+- question: the capture is a question addressed to the assistant or the vault — asking for information back ("what did I write about debt?", "who is Rahul?") rather than something to keep. Questions have "title" only; remindAtLocal and personName are null.
 - note: anything else worth holding — an idea, a loose end, a thing to not forget.`;
 
 export const ASK_SYSTEM_PROMPT = `You are Wovera, answering a question from the keeper of a private second brain. You receive their question and pages from their own vault.

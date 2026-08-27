@@ -11,7 +11,7 @@ import type { VaultDocument } from "../index";
  */
 
 export interface RouteResult {
-  kind: "reminder" | "person" | "note";
+  kind: "reminder" | "person" | "note" | "question";
   /** Short display title for the routed item. */
   title: string;
   /** Local time "YYYY-MM-DD HH:mm" for reminders; null otherwise. */
@@ -32,7 +32,9 @@ export function parseRouteResult(raw: string, fallbackTitle: string): RouteResul
     const cleaned = raw.replace(/^```(?:json)?/m, "").replace(/```\s*$/m, "");
     const p = JSON.parse(cleaned) as Record<string, unknown>;
     const kind =
-      p.kind === "reminder" || p.kind === "person" || p.kind === "note" ? p.kind : "note";
+      p.kind === "reminder" || p.kind === "person" || p.kind === "note" || p.kind === "question"
+        ? p.kind
+        : "note";
     const title =
       typeof p.title === "string" && p.title.trim() ? p.title.trim().slice(0, 60) : safe.title;
     const remindAtLocal =
@@ -52,6 +54,49 @@ export function parseRouteResult(raw: string, fallbackTitle: string): RouteResul
   } catch {
     return safe;
   }
+}
+
+const INTERROGATIVE_OPENERS = [
+  "what",
+  "why",
+  "how",
+  "when",
+  "where",
+  "who",
+  "whom",
+  "whose",
+  "which",
+  "can",
+  "could",
+  "should",
+  "would",
+  "will",
+  "is",
+  "are",
+  "was",
+  "were",
+  "do",
+  "does",
+  "did",
+  "am",
+  "have",
+  "has",
+  "had",
+];
+
+const OPENER_RE = new RegExp(`^(?:${INTERROGATIVE_OPENERS.join("|")})\\b`, "i");
+
+/**
+ * Heuristic for the Shelves field: does this capture read as a question
+ * addressed to the assistant rather than something to keep?
+ * True when the trimmed text ends with "?" or starts with an interrogative
+ * opener (word-boundary, case-insensitive — "whatever" does not count).
+ */
+export function isQuestionShaped(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (trimmed.endsWith("?")) return true;
+  return OPENER_RE.test(trimmed);
 }
 
 /** "YYYY-MM-DD HH:mm" in the device's local time → ms epoch. */
@@ -132,6 +177,8 @@ export async function applyRoute(
     return { doc, kind: "person", chip: `New person — ${doc.title} · People`, remindAtMs: null };
   }
 
+  // Everything else — plain notes, degraded reminders/persons, and (defensively)
+  // "question" routes the UI didn't intercept — files as a note. Never throws.
   const doc = await vault.createDocument({
     type: "thread",
     title: route.title,
