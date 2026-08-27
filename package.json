@@ -10,6 +10,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --build && pnpm --filter @wovera/mobile exec tsc --noEmit",
     "test": "vitest run",
+    "import-vault": "pnpm --filter @wovera/importer run cli",
     "verify": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {

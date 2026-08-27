@@ -6,6 +6,9 @@ node_modules/
 .env.*
 !.env.example
 
+# personal vault snapshots — private data never enters this public repo
+*.local.json
+
 # build output
 dist/
 build/

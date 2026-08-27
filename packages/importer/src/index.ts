@@ -9,6 +9,21 @@
 import type { DocumentType } from "@wovera/core";
 
 export { extractWikilinks } from "@wovera/core";
+export {
+  parseJournalFile,
+  parseLog,
+  parsePersonFile,
+  parseVault,
+  parseWikiFile,
+  parseWikiIndex,
+} from "./parse";
+export type {
+  ImportParseResult,
+  ParsedDocument,
+  ParsedLedgerRow,
+  SkippedFile,
+  VaultFile,
+} from "./parse";
 
 /** Maps a vault directory name to the Wovera document type it holds. */
 export function documentTypeForVaultDir(dir: string): DocumentType | null {

@@ -43,6 +43,8 @@ export interface VaultApi {
     title: string;
     bodyMd: string;
     shelf?: string | null;
+    /** Historical creation time (importer); defaults to now. */
+    createdAt?: number;
     ledger?: { kind: LedgerKind; summary: string };
   }): Promise<VaultDocument>;
   updateDocument(
@@ -55,7 +57,7 @@ export interface VaultApi {
   listShelf(shelf: string): Promise<VaultDocument[]>;
   listShelves(): Promise<ShelfSummary[]>;
   search(query: string, limit?: number): Promise<SearchHit[]>;
-  appendLedger(kind: LedgerKind, summary: string, docUlid?: string): Promise<void>;
+  appendLedger(kind: LedgerKind, summary: string, docUlid?: string, ts?: number): Promise<void>;
   listLedger(limit?: number): Promise<LedgerEntry[]>;
   countDocuments(): Promise<number>;
 }
@@ -123,9 +125,10 @@ export class SqliteVault implements VaultApi {
     title: string;
     bodyMd: string;
     shelf?: string | null;
+    createdAt?: number;
     ledger?: { kind: LedgerKind; summary: string };
   }): Promise<VaultDocument> {
-    const ts = this.now();
+    const ts = input.createdAt ?? this.now();
     const hlc = this.tick();
     const doc: VaultDocument = {
       ulid: ulid(),
@@ -140,7 +143,7 @@ export class SqliteVault implements VaultApi {
     await this.writeLinks(doc);
     await this.writeOp(doc, hlc);
     const entry = input.ledger ?? { kind: DEFAULT_LEDGER[input.type], summary: input.title };
-    await this.appendLedger(entry.kind, entry.summary, doc.ulid);
+    await this.appendLedger(entry.kind, entry.summary, doc.ulid, ts);
     return doc;
   }
 
@@ -224,10 +227,15 @@ export class SqliteVault implements VaultApi {
     return rows;
   }
 
-  async appendLedger(kind: LedgerKind, summary: string, docUlid?: string): Promise<void> {
+  async appendLedger(
+    kind: LedgerKind,
+    summary: string,
+    docUlid?: string,
+    ts?: number,
+  ): Promise<void> {
     await this.db
       .insert(ledger)
-      .values({ ts: this.now(), kind, summary, docUlid: docUlid ?? null });
+      .values({ ts: ts ?? this.now(), kind, summary, docUlid: docUlid ?? null });
   }
 
   async listLedger(limit = 100): Promise<LedgerEntry[]> {

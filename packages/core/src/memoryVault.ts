@@ -24,9 +24,10 @@ export class MemoryVault implements VaultApi {
     title: string;
     bodyMd: string;
     shelf?: string | null;
+    createdAt?: number;
     ledger?: { kind: LedgerKind; summary: string };
   }): Promise<VaultDocument> {
-    const now = Date.now();
+    const now = input.createdAt ?? Date.now();
     const doc: VaultDocument = {
       ulid: ulid(),
       type: input.type,
@@ -38,7 +39,7 @@ export class MemoryVault implements VaultApi {
     };
     this.docs.set(doc.ulid, doc);
     const entry = input.ledger ?? { kind: DEFAULT_LEDGER[input.type], summary: input.title };
-    await this.appendLedger(entry.kind, entry.summary, doc.ulid);
+    await this.appendLedger(entry.kind, entry.summary, doc.ulid, now);
     return doc;
   }
 
@@ -105,10 +106,15 @@ export class MemoryVault implements VaultApi {
     return hits;
   }
 
-  async appendLedger(kind: LedgerKind, summary: string, docUlid?: string): Promise<void> {
+  async appendLedger(
+    kind: LedgerKind,
+    summary: string,
+    docUlid?: string,
+    ts?: number,
+  ): Promise<void> {
     this.ledgerRows.push({
       id: this.nextLedgerId++,
-      ts: Date.now(),
+      ts: ts ?? Date.now(),
       kind,
       summary,
       docUlid: docUlid ?? null,
