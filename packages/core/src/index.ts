@@ -53,6 +53,8 @@ export type { LedgerEntry, SearchHit, ShelfSummary, VaultApi, VaultDb } from "./
 export { MemoryVault } from "./memoryVault";
 export { newUlid } from "./ids";
 export { extractWikilinks } from "./wikilinks";
+export { parsePccEntry } from "./reading";
+export type { PccEntry, PccTurn } from "./reading";
 export { buildReplyContext, significantTerms } from "./assistant/context";
 export type { ReplyContext } from "./assistant/context";
 export {
