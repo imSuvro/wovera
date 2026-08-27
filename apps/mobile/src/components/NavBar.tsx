@@ -4,6 +4,7 @@ import Animated, { useReducedMotion } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, RadialGradient, Stop } from "react-native-svg";
 import { emitLampTap } from "../capture/lampBus";
+import { useLampSession } from "../capture/LampSession";
 import { fonts } from "../theme/tokens";
 import { useTheme } from "../theme/ThemeProvider";
 
@@ -113,6 +114,7 @@ function Half({ label, active, onPress }: { label: string; active: boolean; onPr
 export function NavBar({ state, navigation }: BottomTabBarProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const { phase } = useLampSession();
   const current = state.routes[state.index]?.name;
 
   const go = (name: string) => {
@@ -133,13 +135,17 @@ export function NavBar({ state, navigation }: BottomTabBarProps) {
   };
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.bar,
         {
           backgroundColor: theme.surface,
           borderTopColor: theme.line,
           paddingBottom: Platform.OS === "web" ? 0 : insets.bottom,
+          // While the Lamp listens, even the bar recedes — the room goes quiet.
+          opacity: phase === "listening" ? 0.3 : 1,
+          transitionProperty: "opacity",
+          transitionDuration: "200ms",
         },
       ]}
     >
@@ -149,7 +155,7 @@ export function NavBar({ state, navigation }: BottomTabBarProps) {
         <Half label="Shelves" active={current === "shelves"} onPress={() => go("shelves")} />
       </View>
       <NavLamp lit={current === "lamp"} onPress={onLamp} />
-    </View>
+    </Animated.View>
   );
 }
 

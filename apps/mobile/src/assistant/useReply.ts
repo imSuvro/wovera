@@ -16,6 +16,8 @@ export interface ReplyState {
   sources: { ulid: string; title: string }[];
   /** Pages woven from this entry — the "Held for you" cards. */
   held: AppliedWriteback[];
+  /** The entry's real name once Flash-Lite files it — cross-fades in the seal row. */
+  title: string | null;
   error: string | null;
 }
 
@@ -25,6 +27,7 @@ export function useReply(vault: VaultApi | null) {
     text: "",
     sources: [],
     held: [],
+    title: null,
     error: null,
   });
   const running = useRef(false);
@@ -38,12 +41,13 @@ export function useReply(vault: VaultApi | null) {
           text: "",
           sources: [],
           held: [],
+          title: null,
           error: "The assistant isn't connected yet — the entry is kept safely.",
         });
         return;
       }
       running.current = true;
-      setState({ status: "thinking", text: "", sources: [], held: [], error: null });
+      setState({ status: "thinking", text: "", sources: [], held: [], title: null, error: null });
       try {
         const ctx = await buildReplyContext(vault, entry);
         // House Rules: how Wovera speaks.
@@ -72,7 +76,10 @@ export function useReply(vault: VaultApi | null) {
         setState((s) => ({ ...s, status: "done", text: reply }));
         // The entry's real name, quietly, on the cheapest model.
         const title = await generateTitle(entry.bodyMd);
-        if (title) await vault.updateDocument(entry.ulid, { title });
+        if (title) {
+          await vault.updateDocument(entry.ulid, { title });
+          setState((s) => ({ ...s, title }));
+        }
         // The writeback ritual: durable knowledge, held — visibly, undoably.
         const finalEntry = { ulid: entry.ulid, title: title ?? entry.title };
         const wiki = await vault.listByType("wiki", 200);
@@ -110,7 +117,7 @@ export function useReply(vault: VaultApi | null) {
   );
 
   const reset = useCallback(
-    () => setState({ status: "idle", text: "", sources: [], held: [], error: null }),
+    () => setState({ status: "idle", text: "", sources: [], held: [], title: null, error: null }),
     [],
   );
 

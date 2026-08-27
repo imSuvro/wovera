@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { LampSessionProvider } from "../../capture/LampSession";
 import { NavBar } from "../../components/NavBar";
 import { useTheme } from "../../theme/ThemeProvider";
 
@@ -11,17 +12,19 @@ import { useTheme } from "../../theme/ThemeProvider";
 export default function TabsLayout() {
   const { theme } = useTheme();
   return (
-    <Tabs
-      initialRouteName="lamp"
-      tabBar={(props) => <NavBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: { backgroundColor: theme.ground },
-      }}
-    >
-      <Tabs.Screen name="today" options={{ title: "Today" }} />
-      <Tabs.Screen name="lamp" options={{ title: "Lamp" }} />
-      <Tabs.Screen name="shelves" options={{ title: "Shelves" }} />
-    </Tabs>
+    <LampSessionProvider>
+      <Tabs
+        initialRouteName="lamp"
+        tabBar={(props) => <NavBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+          sceneStyle: { backgroundColor: theme.ground },
+        }}
+      >
+        <Tabs.Screen name="today" options={{ title: "Today" }} />
+        <Tabs.Screen name="lamp" options={{ title: "Lamp" }} />
+        <Tabs.Screen name="shelves" options={{ title: "Shelves" }} />
+      </Tabs>
+    </LampSessionProvider>
   );
 }
