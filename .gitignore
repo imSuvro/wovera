@@ -35,3 +35,6 @@ Thumbs.db
 # build artifacts
 *.apk
 *.aab
+
+# typescript incremental build state — machine-local, breaks CI when stale
+*.tsbuildinfo
