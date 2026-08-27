@@ -15,6 +15,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { ReduceMotion, ReducedMotionConfig } from "react-native-reanimated";
+import { WebFrame } from "../components/WebFrame";
 import { ThemeProvider, useTheme } from "../theme/ThemeProvider";
 
 // Keep the splash up until fonts are ready — the first painted frame is the
@@ -24,7 +25,7 @@ void SplashScreen.preventAutoHideAsync();
 function AppShell() {
   const { theme, name } = useTheme();
   return (
-    <>
+    <WebFrame>
       <StatusBar style={name === "dusk" ? "light" : "dark"} />
       <Stack
         screenOptions={{
@@ -32,7 +33,7 @@ function AppShell() {
           contentStyle: { backgroundColor: theme.ground },
         }}
       />
-    </>
+    </WebFrame>
   );
 }
 

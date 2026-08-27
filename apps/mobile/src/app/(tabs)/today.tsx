@@ -1,6 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text } from "react-native";
+import { Card } from "../../components/Card";
 import { Screen } from "../../components/Screen";
-import { fonts, radius, space } from "../../theme/tokens";
+import { TopRow } from "../../components/TopRow";
+import { fonts, space } from "../../theme/tokens";
 import { useTheme } from "../../theme/ThemeProvider";
 
 function greetingForHour(hour: number): string {
@@ -11,22 +13,36 @@ function greetingForHour(hour: number): string {
 }
 
 /**
- * Today — the note left on the kitchen table. Real content (threads being
- * held, quiet continuity) arrives with the vault in Phases 2–6; the layout
- * and voice are final from day one.
+ * Today — the note left on the kitchen table. Three cards, exactly as the
+ * founding artifact's morning screen: quiet continuity, threads being held,
+ * a line from the shelves. Real content flows in from Phases 2–6; the empty
+ * states are honest, never fake.
  */
 export default function TodayScreen() {
   const { theme } = useTheme();
   const hour = new Date().getHours();
   return (
     <Screen>
+      <TopRow />
       <Text style={[styles.greet, { color: theme.ink }]}>{greetingForHour(hour)}.</Text>
-      <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.line }]}>
-        <Text style={[styles.cardLabel, { color: theme.accent }]}>THREADS BEING HELD</Text>
-        <Text style={[styles.cardBody, { color: theme.inkSoft }]}>
+
+      <Card label="Quiet continuity">
+        <Text style={[styles.body, { color: theme.inkSoft }]}>
+          This space fills as your days do — gently, and only with what you tell it.
+        </Text>
+      </Card>
+
+      <Card label="Threads being held">
+        <Text style={[styles.body, { color: theme.inkSoft }]}>
           Nothing yet. When you put things down, the ones that matter will wait for you here.
         </Text>
-      </View>
+      </Card>
+
+      <Card label="From your shelves">
+        <Text style={[styles.quote, { color: theme.inkSoft }]}>
+          A line from your own pages will greet you here, once there are pages.
+        </Text>
+      </Card>
     </Screen>
   );
 }
@@ -34,24 +50,17 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   greet: {
     fontFamily: fonts.display,
-    fontSize: 32,
-    lineHeight: 40,
-    marginTop: space.xl,
+    fontSize: 30,
+    lineHeight: 38,
     marginBottom: space.l,
   },
-  card: {
-    borderWidth: 1,
-    borderRadius: radius.card,
-    padding: space.m,
+  body: {
+    fontFamily: fonts.ui,
+    fontSize: 14,
+    lineHeight: 21,
   },
-  cardLabel: {
-    fontFamily: fonts.uiBold,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    marginBottom: space.s,
-  },
-  cardBody: {
-    fontFamily: fonts.body,
+  quote: {
+    fontFamily: fonts.bodyItalic,
     fontSize: 16,
     lineHeight: 24,
   },
