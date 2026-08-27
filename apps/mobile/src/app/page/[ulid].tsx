@@ -2,6 +2,7 @@ import type { VaultDocument } from "@wovera/core";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { cloudTranscribe } from "../../assistant/transcribe";
 import { Card } from "../../components/Card";
 import { MarkdownBody } from "../../components/MarkdownBody";
 import { PersonMark } from "../../components/PersonMark";
@@ -24,6 +25,27 @@ export default function PageScreen() {
   const [backlinks, setBacklinks] = useState<VaultDocument[]>([]);
   const [replySources, setReplySources] = useState<string[]>([]);
   const [missing, setMissing] = useState(false);
+  // SPIKE (this branch only): cloud re-transcription of the stored audio.
+  const [cloudText, setCloudText] = useState<string | null>(null);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+
+  const runCloudTranscribe = async () => {
+    if (!doc?.audioUri || !vault || cloudBusy) return;
+    setCloudBusy(true);
+    setCloudError(null);
+    try {
+      // Bias recognition toward the vault's own names — the model's
+      // custom-vocabulary list, fed from what this user actually writes.
+      const people = await vault.listByType("person");
+      const vocab = ["Wovera", ...people.map((p) => p.title)];
+      setCloudText(await cloudTranscribe(doc.audioUri, vocab));
+    } catch (err) {
+      setCloudError(err instanceof Error ? err.message : "transcription failed");
+    } finally {
+      setCloudBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!vault || !ulid) return;
@@ -107,6 +129,36 @@ export default function PageScreen() {
               </Card>
             </View>
           ) : null}
+          {doc.audioUri ? (
+            <View style={styles.replyBlock}>
+              <Card label="Cloud transcription — test branch only">
+                <Text style={[styles.cloudWarn, { color: theme.inkSoft }]}>
+                  Sends this entry's raw audio to Google's gemini-3.5-transcribe. Free tier: Google
+                  may train on it. Nothing runs unless you tap.
+                </Text>
+                {cloudText ? (
+                  <Text style={[styles.cloudText, { color: theme.ink }]}>{cloudText}</Text>
+                ) : null}
+                {cloudError ? (
+                  <Text style={[styles.cloudWarn, { color: theme.inkSoft }]}>{cloudError}</Text>
+                ) : null}
+                <Pressable
+                  onPress={() => void runCloudTranscribe()}
+                  hitSlop={8}
+                  disabled={cloudBusy}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.cloudAction, { color: theme.accentDeep }]}>
+                    {cloudBusy
+                      ? "Transcribing in the cloud…"
+                      : cloudText
+                        ? "Run it again"
+                        : "Transcribe this audio in the cloud"}
+                  </Text>
+                </Pressable>
+              </Card>
+            </View>
+          ) : null}
           {backlinks.length > 0 ? (
             <View style={styles.backlinksBlock}>
               <Card label="Linked from">
@@ -159,4 +211,7 @@ const styles = StyleSheet.create({
   backlinkRow: { paddingVertical: 8 },
   backlinkTitle: { fontFamily: fonts.bodyMedium, fontSize: 15 },
   missing: { fontFamily: fonts.ui, fontSize: 14, lineHeight: 21 },
+  cloudWarn: { fontFamily: fonts.ui, fontSize: 12.5, lineHeight: 18 },
+  cloudText: { fontFamily: fonts.body, fontSize: 16, lineHeight: 25, marginTop: space.s },
+  cloudAction: { fontFamily: fonts.uiBold, fontSize: 14, marginTop: space.s },
 });
