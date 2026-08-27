@@ -21,6 +21,24 @@ Underneath is a voice-first journal with an AI that has genuinely read your stor
 
 Wovera grew out of a real markdown vault its maker lived in daily for months — journal, wiki, people, and an append-only log, tended by an AI. The app is that system's second life, rebuilt so anyone can live in it.
 
+## What it looks like
+
+<div align="center">
+
+| The first evening                                                                               | The reply                                                                                         |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| <img src="docs/screens/first-evening.png" width="260" alt="The Lamp, lit for the first time" /> | <img src="docs/screens/the-reply.png" width="260" alt="A reply arriving on the Letter surface" /> |
+| The lamp is lit before anything else — capture is the whole onboarding.                         | Your entry is kept, then a reply arrives on the Letter: warm, grounded, citing your own pages.    |
+
+| Your shelves                                                                                          | The reading room                                                                     |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| <img src="docs/screens/shelves.png" width="260" alt="The Shelves, with bookplate headers" />          | <img src="docs/screens/reading-room.png" width="260" alt="A page set like a book" /> |
+| Pages grow from what you tell the lamp, each shelf a bookplate, each page showing where it came from. | Anything you ever saved is set like a book — no raw markdown ever reaches your eye.  |
+
+<sub>Real screens from a fresh vault on an Android device. No demo data: the only page a new vault carries is the house's own welcome letter.</sub>
+
+</div>
+
 ## The promises
 
 These are architecture, not policy — the code is public so you can check them:
@@ -38,25 +56,36 @@ One TypeScript codebase → Android, iOS, and web (Expo SDK 57). Local SQLite va
 
 | Path                                     | What lives there                                        |
 | ---------------------------------------- | ------------------------------------------------------- |
-| [`apps/mobile`](apps)                    | The Expo app (arrives in Phase 1)                       |
+| [`apps/mobile`](apps/mobile)             | The Expo app — Android, iOS, and web from one source    |
 | [`packages/core`](packages/core)         | Vault domain: documents, links, Ledger, oplog — pure TS |
 | [`packages/importer`](packages/importer) | Imports an existing Obsidian-style markdown vault       |
 | [`docs`](docs)                           | Architecture decision records & design notes            |
 
 ## Roadmap
 
-The experience ships in chapters — the design was written as a story before any code:
+The experience ships in chapters — the design was written as a story before any code, and every screen is drawn as an annotated plate before it is built.
 
-- [ ] **The Lamp** — voice capture: talk, and your words are kept exactly _(building now)_
-- [ ] **The reply** — an AI response grounded in your own vault, with citations
-- [ ] **The morning after** — Today: threads being held, quiet continuity
-- [ ] **Remember anything** — quick capture that files itself, visibly
-- [ ] **The Shelves** — your knowledge, browsable, with provenance on every page
-- [ ] **The Ledger** — the audit trail a normal person can read
-- [ ] **Studying with your shelves** — paste a transcript, talk it through
-- [ ] **House Rules** — the skeleton locked, everything else yours
-- [ ] Sync across devices, end-to-end encrypted
+**Built and running on device:**
+
+- [x] **The Lamp** — voice capture: talk, and your words are kept exactly, in three acts (arrival, listening, kept)
+- [x] **The reply** — an AI response grounded in your own vault, with citations, arriving on the Letter
+- [x] **The morning after** — Today as a composed note: continuity, threads with clocks, a daily line
+- [x] **Remember anything** — quick capture that files itself, visibly, into reminders, people, or threads
+- [x] **The Shelves** — your knowledge, browsable, with provenance on every page
+- [x] **Find, or ask, anything** — one field: instant search, and questions answered from your own pages
+- [x] **The reading room** — any text you ever kept, set like a book
+- [x] **The Ledger** — the audit trail a normal person can read, with one-tap undo
+- [x] **House Rules** — the skeleton locked, tone and light yours
+- [x] **The first evening** — a new vault that already feels lived-in, without a single fake page
+
+**Next:**
+
+- [ ] Sync across devices, end-to-end encrypted _(client complete and unit-proven; the account gate switches on next)_
+- [ ] Studying with your shelves — paste a transcript, talk it through
+- [ ] Semantic recall with on-device embeddings
 - [ ] Android release → web → iOS
+
+Known limits today: the web build runs the full interface but falls back to an in-memory vault when the browser's OPFS-backed SQLite is unavailable, so web persistence is not yet guaranteed; iOS is unbuilt.
 
 ## Developing
 
@@ -66,7 +95,19 @@ pnpm install
 pnpm verify       # lint + typecheck + tests — the gate CI runs
 ```
 
-The mobile app and its run instructions land with Phase 1. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and the comfort contract every change is measured against.
+Run the app:
+
+```bash
+cd apps/mobile
+npx expo start --dev-client   # Android/iOS dev build
+npx expo export -p web        # web bundle → apps/mobile/dist
+```
+
+The web bundle must be served with `Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: require-corp` (see `apps/mobile/public/serve.json`) —
+without cross-origin isolation the browser cannot open the SQLite vault.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and the comfort contract every change is measured against.
 
 ## License
 
