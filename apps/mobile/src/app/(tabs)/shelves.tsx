@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Card } from "../../components/Card";
 import { Eyebrow } from "../../components/Eyebrow";
+import { PersonMark } from "../../components/PersonMark";
 import { Screen } from "../../components/Screen";
+import { SnippetText } from "../../components/SnippetText";
 import { TopRow } from "../../components/TopRow";
 import { shortDate } from "../../lib/dates";
 import { fonts, space } from "../../theme/tokens";
@@ -86,16 +88,34 @@ export default function ShelvesScreen() {
               </Text>
             </Card>
           ) : (
-            hits.map((hit) => (
+            hits.map((hit, i) => (
               <Pressable key={hit.ulid} onPress={() => router.push(`/page/${hit.ulid}`)}>
-                <Card>
+                <Card index={Math.min(i, 5)}>
                   <Text style={[styles.pageTitle, { color: theme.ink }]}>{hit.title}</Text>
-                  <Text style={[styles.snippet, { color: theme.inkSoft }]}>{hit.snippet}</Text>
+                  <SnippetText
+                    snippet={hit.snippet}
+                    style={[styles.snippet, { color: theme.inkSoft }]}
+                  />
                 </Card>
               </Pressable>
             ))
           )
-        ) : shelves.length === 0 ? (
+        ) : (
+          <>
+            <Pressable onPress={() => router.push("/journal")}>
+              <Card style={styles.journalDoor}>
+                <View style={styles.journalDoorRow}>
+                  <Text style={[styles.pageTitle, { color: theme.ink }]}>The Journal</Text>
+                  <Text style={[styles.journalArrow, { color: theme.accentDeep }]}>›</Text>
+                </View>
+                <Text style={[styles.pageMeta, { color: theme.inkFaint }]}>
+                  your entries, word for word
+                </Text>
+              </Card>
+            </Pressable>
+          </>
+        )}
+        {hits !== null ? null : shelves.length === 0 ? (
           <Card label="Your library">
             <Text style={[styles.empty, { color: theme.inkSoft }]}>
               The shelves are built as you live. Pages grow here from what you put down — each one
@@ -113,13 +133,17 @@ export default function ShelvesScreen() {
                     onPress={() => router.push(`/page/${page.ulid}`)}
                     style={[
                       styles.pageRow,
+                      page.type === "person" && styles.personRow,
                       i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.line },
                     ]}
                   >
-                    <Text style={[styles.pageTitle, { color: theme.ink }]}>{page.title}</Text>
-                    <Text style={[styles.pageMeta, { color: theme.inkFaint }]} numberOfLines={1}>
-                      last tended {shortDate(page.updatedAt)}
-                    </Text>
+                    {page.type === "person" ? <PersonMark name={page.title} /> : null}
+                    <View style={styles.pageText}>
+                      <Text style={[styles.pageTitle, { color: theme.ink }]}>{page.title}</Text>
+                      <Text style={[styles.pageMeta, { color: theme.inkFaint }]} numberOfLines={1}>
+                        last tended {shortDate(page.updatedAt)}
+                      </Text>
+                    </View>
                   </Pressable>
                 ))}
               </Card>
@@ -153,6 +177,11 @@ const styles = StyleSheet.create({
   shelfBlock: { marginBottom: space.s },
   shelfCard: { paddingVertical: 4 },
   pageRow: { paddingVertical: 12 },
+  personRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  pageText: { flex: 1 },
+  journalDoor: { marginBottom: space.m },
+  journalDoorRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  journalArrow: { fontFamily: fonts.uiBold, fontSize: 18 },
   pageTitle: {
     fontFamily: fonts.bodyMedium,
     fontSize: 16,

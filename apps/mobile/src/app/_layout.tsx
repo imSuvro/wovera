@@ -34,6 +34,9 @@ function AppShell({ sweepRef }: { sweepRef: React.Ref<SweepAPI> }) {
         <Stack
           screenOptions={{
             headerShown: false,
+            // Rooms cross-fade softly — doors in a house, not sliding panels.
+            animation: "fade",
+            animationDuration: 220,
             contentStyle: { backgroundColor: theme.ground },
           }}
         />

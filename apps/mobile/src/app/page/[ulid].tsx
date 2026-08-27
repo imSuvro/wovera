@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "../../components/Card";
 import { MarkdownBody } from "../../components/MarkdownBody";
+import { PersonMark } from "../../components/PersonMark";
 import { Screen } from "../../components/Screen";
 import { shortDate } from "../../lib/dates";
 import { fonts, space } from "../../theme/tokens";
@@ -75,6 +76,11 @@ export default function PageScreen() {
         </Card>
       ) : doc ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+          {doc.type === "person" ? (
+            <View style={styles.personHeader}>
+              <PersonMark name={doc.title} size={52} />
+            </View>
+          ) : null}
           <Text style={[styles.title, { color: theme.ink }]}>{doc.title}</Text>
           <Text style={[styles.provenance, { color: theme.inkFaint }]}>{provenance}</Text>
           <MarkdownBody bodyMd={doc.bodyMd} onWikilink={openByTitle} />
@@ -144,6 +150,7 @@ const styles = StyleSheet.create({
     marginBottom: space.m,
   },
   scroll: { paddingBottom: space.xxl },
+  personHeader: { marginBottom: space.s },
   replyBlock: { marginTop: space.l },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: space.s },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },

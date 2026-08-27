@@ -3,6 +3,7 @@ import type { LedgerEntry, LedgerKind } from "@wovera/core";
 import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { Screen } from "../components/Screen";
 import { shortDate } from "../lib/dates";
 import { fonts, space } from "../theme/tokens";
@@ -66,10 +67,14 @@ export default function LedgerScreen() {
         Everything done on your behalf, in order, forever. Nothing here can be rewritten.
       </Text>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {rows.map((row) => {
+        {rows.map((row, i) => {
           const pill = pillColors[row.kind];
           return (
-            <View key={row.id} style={[styles.row, { borderBottomColor: theme.line }]}>
+            <Animated.View
+              entering={FadeInDown.duration(280).delay(Math.min(i, 10) * 35)}
+              key={row.id}
+              style={[styles.row, { borderBottomColor: theme.line }]}
+            >
               <Text style={[styles.date, { color: theme.inkFaint }]}>{shortDate(row.ts)}</Text>
               <View style={[styles.pill, { backgroundColor: pill.bg }]}>
                 <Text style={[styles.pillText, { color: pill.fg }]}>{row.kind}</Text>
@@ -86,7 +91,7 @@ export default function LedgerScreen() {
                   </Pressable>
                 ) : null}
               </View>
-            </View>
+            </Animated.View>
           );
         })}
       </ScrollView>
