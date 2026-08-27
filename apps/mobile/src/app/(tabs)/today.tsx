@@ -250,7 +250,7 @@ export default function TodayScreen() {
               , {lastWhen}.
             </>
           ) : (
-            "This page fills as your days do — gently, and only with what you tell it."
+            "The house is new. Your first words will start its memory — the lamp is waiting."
           )}
         </Text>
         {away && awayOpen ? (
@@ -284,7 +284,8 @@ export default function TodayScreen() {
         ) : null}
         {threads.length === 0 && !filedChip ? (
           <Text style={[styles.prose, { color: theme.inkFaint }]}>
-            Nothing yet. When you put things down, the ones that matter wait for you here.
+            Nothing held yet. Tell the lamp to remind you of something and it will wait here with a
+            clock.
           </Text>
         ) : (
           threads.map((t) => (

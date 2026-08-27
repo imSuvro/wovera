@@ -1,6 +1,5 @@
 import { MemoryVault } from "@wovera/core";
 import type { LedgerKind, VaultApi } from "@wovera/core";
-import { seedExampleVault } from "./seed";
 
 interface Snapshot {
   documents: {
@@ -44,10 +43,9 @@ export function openVault(): Promise<VaultApi> {
 async function openMemoryVault(): Promise<VaultApi> {
   const vault = new MemoryVault();
   const snapshot = await loadLocalSnapshot();
-  if (!snapshot) {
-    await seedExampleVault(vault);
-    return vault;
-  }
+  // No snapshot, no examples — a fresh vault starts empty but for the
+  // house's welcome letter, which VaultProvider leaves (Plate VIII).
+  if (!snapshot) return vault;
   for (const row of snapshot.ledger) {
     await vault.appendLedger(row.kind, row.summary, undefined, row.ts);
   }

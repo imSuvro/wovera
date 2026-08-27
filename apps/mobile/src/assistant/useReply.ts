@@ -1,4 +1,10 @@
-import { applyWriteback, buildReplyContext, parseWritebackProposals } from "@wovera/core";
+import {
+  applyWriteback,
+  buildReplyContext,
+  parseWritebackProposals,
+  FIRST_EVENING_REPLY_NOTE,
+  FIRST_EVENING_WRITEBACK_NOTE,
+} from "@wovera/core";
 import type { AppliedWriteback, VaultApi, VaultDocument } from "@wovera/core";
 import { useCallback, useRef, useState } from "react";
 import { generateTitle, geminiKey, proposeWritebacks, streamReply } from "./gemini";
@@ -49,6 +55,9 @@ export function useReply(vault: VaultApi | null) {
       running.current = true;
       setState({ status: "thinking", text: "", sources: [], held: [], title: null, error: null });
       try {
+        // The first evening: this entry is the one that ends it, so the check
+        // must happen before it counts (the vault already holds it).
+        const firstEvening = (await vault.listByType("journal", 2)).length <= 1;
         const ctx = await buildReplyContext(vault, entry);
         // House Rules: how Wovera speaks.
         const tone = await vault.getSetting("voice_tone");
@@ -58,6 +67,7 @@ export function useReply(vault: VaultApi | null) {
             : tone === "Coach"
               ? "\n\nTone override for this reply: corner-man energy — brisk, rallying, action-leaning, still grounded only in their pages."
               : "";
+        const openingNote = firstEvening ? FIRST_EVENING_REPLY_NOTE : "";
         setState((s) => ({ ...s, status: "streaming", sources: ctx.sources }));
         const reply = await streamReply(
           ctx.userPrompt,
@@ -66,7 +76,7 @@ export function useReply(vault: VaultApi | null) {
           },
           undefined,
           undefined,
-          toneNote,
+          toneNote + openingNote,
         );
         await vault.attachReply(
           entry.ulid,
@@ -92,7 +102,9 @@ export function useReply(vault: VaultApi | null) {
           .map(([shelf, titles]) => `${shelf}:\n${titles.map((t) => `- ${t}`).join("\n")}`)
           .join("\n\n");
         const raw = await proposeWritebacks(
-          `EXISTING PAGES BY SHELF:\n${pagesList}\n\n---\n\nENTRY "${finalEntry.title}":\n${entry.bodyMd}\n\n---\n\nREPLY GIVEN:\n${reply}`,
+          `EXISTING PAGES BY SHELF:\n${pagesList}\n\n---\n\nENTRY "${finalEntry.title}":\n${entry.bodyMd}\n\n---\n\nREPLY GIVEN:\n${reply}${
+            firstEvening ? FIRST_EVENING_WRITEBACK_NOTE : ""
+          }`,
         );
         if (raw) {
           for (const proposal of parseWritebackProposals(raw)) {

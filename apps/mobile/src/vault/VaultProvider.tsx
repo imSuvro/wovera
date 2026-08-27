@@ -1,3 +1,4 @@
+import { ensureWelcomeLetter } from "@wovera/core";
 import type { VaultApi } from "@wovera/core";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
@@ -18,7 +19,9 @@ export function VaultProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     openVault().then(
-      (v) => {
+      async (v) => {
+        // The house leaves its letter before anyone walks in (create-once).
+        await ensureWelcomeLetter(v).catch(() => undefined);
         if (!cancelled) setVault(v);
       },
       (err) => console.error("vault open failed", err),

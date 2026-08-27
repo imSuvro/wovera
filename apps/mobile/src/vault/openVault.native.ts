@@ -4,7 +4,6 @@ import { drizzle } from "drizzle-orm/expo-sqlite";
 import { openDatabaseSync } from "expo-sqlite";
 import { Platform } from "react-native";
 import { newUlid as ulid } from "@wovera/core";
-import { seedExampleVault } from "./seed";
 
 /** Same-origin on web (served beside the app); USB bridge on device. */
 const SNAPSHOT_URL =
@@ -14,7 +13,7 @@ const SNAPSHOT_URL =
 
 /**
  * Native vault: expo-sqlite in WAL mode, core migrations, a persistent
- * device id for the HLC, and example seed on first open.
+ * device id for the HLC. A fresh vault starts empty (Plate VIII).
  */
 /**
  * Singleton: fast refresh remounts the provider on every save, and each
@@ -62,9 +61,10 @@ async function openVaultOnce(): Promise<VaultApi> {
     raw.runSync("INSERT INTO settings (key, value) VALUES ('device_id', ?)", [deviceId]);
   }
   const vault = new SqliteVault(drizzle(raw) as unknown as VaultDb, deviceId);
-  if ((await vault.countDocuments()) === 0) {
-    if (!(__DEV__ && (await loadDevSnapshot(vault)))) await seedExampleVault(vault);
-  }
+  // A fresh vault stays empty: the house's own welcome letter is the only
+  // page anyone starts with (Plate VIII), and VaultProvider leaves it.
+  // Dev keeps the snapshot path for working against the real vault.
+  if (__DEV__ && (await vault.countDocuments()) === 0) await loadDevSnapshot(vault);
   if (__DEV__)
     console.log(`vault ready (${Platform.OS}-sqlite): ${await vault.countDocuments()} documents`);
   return vault;
@@ -73,7 +73,7 @@ async function openVaultOnce(): Promise<VaultApi> {
 /**
  * Dev-only: on first open, try the importer snapshot served by the local
  * static server (reachable over USB via `adb reverse tcp:8317 tcp:8317`).
- * Real users never hit this path; production first-open seeds examples.
+ * Real users never hit this path; a fresh vault simply starts empty.
  */
 async function loadDevSnapshot(vault: SqliteVault): Promise<boolean> {
   try {
