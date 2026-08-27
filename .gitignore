@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+
+# secrets — never committed, no exceptions
+.env
+.env.*
+!.env.example
+
+# build output
+dist/
+build/
+coverage/
+
+# expo / native (populated from Phase 1)
+.expo/
+apps/mobile/android/
+apps/mobile/ios/
+*.jks
+*.keystore
+*.mobileprovision
+*.p8
+*.p12
+
+# editor & OS noise
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json

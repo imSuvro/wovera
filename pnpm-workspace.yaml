@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+# pnpm's build-script allowlist — every dependency install script needs an
+# explicit yes here. esbuild's script installs its platform binary (vitest dep).
+allowBuilds:
+  esbuild: true

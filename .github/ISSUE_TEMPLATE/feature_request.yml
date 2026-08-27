@@ -1,0 +1,28 @@
+name: Feature request
+description: An idea that would make the house better
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The friction
+      description: What moment feels wrong or effortful today? Stories beat specs.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: How might it work? Sketches and rough words welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: comfort
+    attributes:
+      label: Does it keep the comfort contract?
+      description: No guilt mechanics, words kept verbatim, nothing leaves the device silently, AI actions visible in the Ledger.
+      options:
+        - "Yes, it fits the contract"
+        - "Not sure — needs discussion"
+    validations:
+      required: true
