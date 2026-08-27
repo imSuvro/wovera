@@ -8,6 +8,9 @@
   "types": "src/index.ts",
   "license": "AGPL-3.0-only",
   "dependencies": {
+    "@noble/ciphers": "^2.3.0",
+    "@noble/hashes": "^2.3.0",
+    "@scure/bip39": "^2.3.0",
     "drizzle-orm": "^0.45.2",
     "ulidx": "^2.4.1"
   },

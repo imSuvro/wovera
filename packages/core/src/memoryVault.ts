@@ -175,4 +175,23 @@ export class MemoryVault implements VaultApi {
   async setSetting(key: string, value: string): Promise<void> {
     this.settings.set(key, value);
   }
+
+  /** Memory vault keeps no outbox — it is the offline/fallback tier. */
+  async listUnpushedOps(): Promise<
+    { opUlid: string; docUlid: string; deviceId: string; hlc: string; payload: string }[]
+  > {
+    return [];
+  }
+
+  async markOpsPushed(): Promise<void> {}
+
+  private remoteHlc = new Map<string, string>();
+
+  async applyRemoteDocument(doc: VaultDocument, hlc: string): Promise<boolean> {
+    const known = this.remoteHlc.get(doc.ulid);
+    if (known && known >= hlc) return false;
+    this.remoteHlc.set(doc.ulid, hlc);
+    this.docs.set(doc.ulid, { ...doc });
+    return true;
+  }
 }

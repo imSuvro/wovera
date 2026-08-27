@@ -65,6 +65,20 @@ export {
 export { applyRoute, listThreads, localStampToMs, parseRouteResult } from "./assistant/routing";
 export type { AppliedRoute, RouteResult } from "./assistant/routing";
 export {
+  createRecovery,
+  decryptJson,
+  deriveVaultKey,
+  encryptJson,
+  entropyToHex,
+  entropyToMnemonic,
+  hexToEntropy,
+  mnemonicToRootEntropy,
+  randomMnemonic,
+} from "./crypto";
+export type { VaultCipherEnvelope } from "./crypto";
+export { runSync } from "./sync";
+export type { RemoteOp, SyncResult, SyncTransport } from "./sync";
+export {
   MAX_WRITEBACKS,
   applyWriteback,
   parseWritebackProposals,

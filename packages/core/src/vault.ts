@@ -71,6 +71,17 @@ export interface VaultApi {
   getLinkTargets(ulid: string, kind: LinkKind): Promise<string[]>;
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
+  /** Outbox rows not yet accepted by the server. */
+  listUnpushedOps(): Promise<
+    { opUlid: string; docUlid: string; deviceId: string; hlc: string; payload: string }[]
+  >;
+  markOpsPushed(opUlids: string[]): Promise<void>;
+  /**
+   * Applies a document from another device: last-write-wins by HLC.
+   * Writes documents/links only — no outbox echo, no ledger noise.
+   * Returns true if the local copy changed.
+   */
+  applyRemoteDocument(doc: VaultDocument, hlc: string): Promise<boolean>;
   appendLedger(
     kind: LedgerKind,
     summary: string,
@@ -269,6 +280,57 @@ export class SqliteVault implements VaultApi {
       LIMIT ${limit}
     `)) as SearchHit[];
     return rows;
+  }
+
+  async listUnpushedOps(): Promise<
+    { opUlid: string; docUlid: string; deviceId: string; hlc: string; payload: string }[]
+  > {
+    const rows = await this.db
+      .select({
+        opUlid: oplog.opUlid,
+        docUlid: oplog.docUlid,
+        deviceId: oplog.deviceId,
+        hlc: oplog.hlc,
+        payload: oplog.payload,
+      })
+      .from(oplog)
+      .where(eq(oplog.pushed, 0))
+      .orderBy(oplog.createdAt, oplog.hlc);
+    return rows;
+  }
+
+  async markOpsPushed(opUlids: string[]): Promise<void> {
+    for (const opUlid of opUlids) {
+      await this.db.update(oplog).set({ pushed: 1 }).where(eq(oplog.opUlid, opUlid));
+    }
+  }
+
+  async applyRemoteDocument(doc: VaultDocument, hlc: string): Promise<boolean> {
+    const existing = await this.db
+      .select({ hlc: documents.hlc })
+      .from(documents)
+      .where(eq(documents.ulid, doc.ulid))
+      .limit(1);
+    if (existing[0] && existing[0].hlc >= hlc) return false; // ours is newer or same
+    const row = {
+      type: doc.type,
+      title: doc.title,
+      bodyMd: doc.bodyMd,
+      shelf: doc.shelf,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+      audioUri: doc.audioUri ?? null,
+      replyMd: doc.replyMd ?? null,
+      remindAt: doc.remindAt ?? null,
+      hlc,
+    };
+    if (existing[0]) {
+      await this.db.update(documents).set(row).where(eq(documents.ulid, doc.ulid));
+    } else {
+      await this.db.insert(documents).values({ ulid: doc.ulid, ...row });
+    }
+    await this.writeLinks(doc);
+    return true;
   }
 
   async attachReply(docUlid: string, replyMd: string, sourceTitles: string[]): Promise<void> {
