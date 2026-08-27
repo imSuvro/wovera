@@ -1,6 +1,7 @@
+import { restoreFromLedger } from "@wovera/core";
 import type { LedgerEntry, LedgerKind } from "@wovera/core";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Screen } from "../components/Screen";
 import { shortDate } from "../lib/dates";
@@ -16,17 +17,27 @@ export default function LedgerScreen() {
   const { theme, name } = useTheme();
   const vault = useVault();
   const [rows, setRows] = useState<LedgerEntry[]>([]);
+  const [restoring, setRestoring] = useState<number | null>(null);
+
+  const reload = useCallback(() => {
+    if (!vault) return;
+    void vault.listLedger(200).then(setRows);
+  }, [vault]);
 
   useEffect(() => {
-    if (!vault) return;
-    let cancelled = false;
-    void vault.listLedger(200).then((entries) => {
-      if (!cancelled) setRows(entries);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [vault]);
+    reload();
+  }, [reload]);
+
+  const restore = async (row: LedgerEntry) => {
+    if (!vault || restoring !== null) return;
+    setRestoring(row.id);
+    try {
+      await restoreFromLedger(vault, row);
+      reload();
+    } finally {
+      setRestoring(null);
+    }
+  };
 
   const pillColors: Record<LedgerKind, { bg: string; fg: string }> =
     name === "dusk"
@@ -63,9 +74,18 @@ export default function LedgerScreen() {
               <View style={[styles.pill, { backgroundColor: pill.bg }]}>
                 <Text style={[styles.pillText, { color: pill.fg }]}>{row.kind}</Text>
               </View>
-              <Text style={[styles.summary, { color: theme.inkSoft }]} numberOfLines={2}>
-                {row.summary}
-              </Text>
+              <View style={styles.summaryCol}>
+                <Text style={[styles.summary, { color: theme.inkSoft }]} numberOfLines={2}>
+                  {row.summary}
+                </Text>
+                {row.diffRef ? (
+                  <Pressable onPress={() => void restore(row)} hitSlop={8}>
+                    <Text style={[styles.restore, { color: theme.accentDeep }]}>
+                      {restoring === row.id ? "Restoring…" : "Restore the page to before this"}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </View>
           );
         })}
@@ -94,5 +114,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  summary: { fontFamily: fonts.ui, fontSize: 13, lineHeight: 19, flex: 1 },
+  summaryCol: { flex: 1 },
+  summary: { fontFamily: fonts.ui, fontSize: 13, lineHeight: 19 },
+  restore: { fontFamily: fonts.uiMedium, fontSize: 12, marginTop: 4 },
 });

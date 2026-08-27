@@ -53,4 +53,15 @@ export { newUlid } from "./ids";
 export { extractWikilinks } from "./wikilinks";
 export { buildReplyContext, significantTerms } from "./assistant/context";
 export type { ReplyContext } from "./assistant/context";
-export { GENTLE_SYSTEM_PROMPT, TITLE_SYSTEM_PROMPT } from "./assistant/prompts";
+export {
+  GENTLE_SYSTEM_PROMPT,
+  TITLE_SYSTEM_PROMPT,
+  WRITEBACK_SYSTEM_PROMPT,
+} from "./assistant/prompts";
+export {
+  MAX_WRITEBACKS,
+  applyWriteback,
+  parseWritebackProposals,
+  restoreFromLedger,
+} from "./assistant/writebacks";
+export type { AppliedWriteback, WritebackProposal } from "./assistant/writebacks";

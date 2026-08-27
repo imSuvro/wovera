@@ -199,6 +199,24 @@ export default function LampScreen() {
                 ) : null}
               </Card>
             ) : null}
+            {reply.held.length > 0 ? (
+              <Card label="Held for you">
+                {reply.held.map((h) => (
+                  <Pressable
+                    key={h.ulid}
+                    onPress={() => router.push(`/page/${h.ulid}`)}
+                    style={styles.heldRow}
+                  >
+                    <Text style={[styles.heldText, { color: theme.held }]}>
+                      ✦ {h.created ? "New page" : "Updated"} — {h.title}
+                    </Text>
+                  </Pressable>
+                ))}
+                <Text style={[styles.heldNote, { color: theme.inkFaint }]}>
+                  Woven into your shelves. Undo any of it from the Ledger.
+                </Text>
+              </Card>
+            ) : null}
             {reply.status === "error" && reply.error ? (
               <Text style={[styles.error, { color: theme.inkSoft }]}>{reply.error}</Text>
             ) : null}
@@ -247,6 +265,9 @@ const styles = StyleSheet.create({
   keptTitle: { fontFamily: fonts.bodyMedium, fontSize: 16 },
   keptSub: { fontFamily: fonts.ui, fontSize: 13, lineHeight: 19, marginTop: 4 },
   replyText: { fontFamily: fonts.body, fontSize: 16, lineHeight: 25 },
+  heldRow: { paddingVertical: 4 },
+  heldText: { fontFamily: fonts.uiMedium, fontSize: 14, lineHeight: 20 },
+  heldNote: { fontFamily: fonts.ui, fontSize: 12, marginTop: 6 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: space.s },
   chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   chipText: { fontFamily: fonts.uiMedium, fontSize: 12 },

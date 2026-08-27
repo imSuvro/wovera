@@ -16,6 +16,8 @@ export interface LedgerEntry {
   kind: LedgerKind;
   summary: string;
   docUlid: string | null;
+  /** Restore payload for undoable actions: JSON {prevBodyMd, prevTitle?}. */
+  diffRef: string | null;
 }
 
 export interface SearchHit {
@@ -66,7 +68,13 @@ export interface VaultApi {
   attachReply(ulid: string, replyMd: string, sourceTitles: string[]): Promise<void>;
   /** Titles of pages a document cites (links of the given kind). */
   getLinkTargets(ulid: string, kind: LinkKind): Promise<string[]>;
-  appendLedger(kind: LedgerKind, summary: string, docUlid?: string, ts?: number): Promise<void>;
+  appendLedger(
+    kind: LedgerKind,
+    summary: string,
+    docUlid?: string,
+    ts?: number,
+    diffRef?: string,
+  ): Promise<void>;
   listLedger(limit?: number): Promise<LedgerEntry[]>;
   countDocuments(): Promise<number>;
 }
@@ -283,10 +291,15 @@ export class SqliteVault implements VaultApi {
     summary: string,
     docUlid?: string,
     ts?: number,
+    diffRef?: string,
   ): Promise<void> {
-    await this.db
-      .insert(ledger)
-      .values({ ts: ts ?? this.now(), kind, summary, docUlid: docUlid ?? null });
+    await this.db.insert(ledger).values({
+      ts: ts ?? this.now(),
+      kind,
+      summary,
+      docUlid: docUlid ?? null,
+      diffRef: diffRef ?? null,
+    });
   }
 
   async listLedger(limit = 100): Promise<LedgerEntry[]> {
@@ -297,6 +310,7 @@ export class SqliteVault implements VaultApi {
       kind: r.kind as LedgerKind,
       summary: r.summary,
       docUlid: r.docUlid,
+      diffRef: r.diffRef,
     }));
   }
 

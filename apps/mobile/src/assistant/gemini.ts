@@ -1,5 +1,5 @@
 import { fetch as expoFetch } from "expo/fetch";
-import { GENTLE_SYSTEM_PROMPT, TITLE_SYSTEM_PROMPT } from "@wovera/core";
+import { GENTLE_SYSTEM_PROMPT, TITLE_SYSTEM_PROMPT, WRITEBACK_SYSTEM_PROMPT } from "@wovera/core";
 
 /**
  * Gemini client. Dev runs on the free tier with the key from .env
@@ -112,6 +112,33 @@ export async function streamReply(
     throw new Error("gemini-filtered");
   }
   return text.trim();
+}
+
+/** The writeback judgment call — JSON out, quiet model, no streaming. */
+export async function proposeWritebacks(userPrompt: string): Promise<string | null> {
+  const key = geminiKey();
+  if (!key) return null;
+  try {
+    const res = await expoFetch(`${BASE}/${REPLY_MODEL}:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: WRITEBACK_SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1024,
+          responseMimeType: "application/json",
+        },
+        safetySettings: SAFETY_SETTINGS,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as StreamChunk;
+    return chunkText(data) || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function generateTitle(entryBody: string): Promise<string | null> {

@@ -144,6 +144,7 @@ export class MemoryVault implements VaultApi {
     summary: string,
     docUlid?: string,
     ts?: number,
+    diffRef?: string,
   ): Promise<void> {
     this.ledgerRows.push({
       id: this.nextLedgerId++,
@@ -151,6 +152,7 @@ export class MemoryVault implements VaultApi {
       kind,
       summary,
       docUlid: docUlid ?? null,
+      diffRef: diffRef ?? null,
     });
   }
 

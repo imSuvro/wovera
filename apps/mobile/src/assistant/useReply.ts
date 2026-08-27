@@ -1,7 +1,7 @@
-import { buildReplyContext } from "@wovera/core";
-import type { VaultApi, VaultDocument } from "@wovera/core";
+import { applyWriteback, buildReplyContext, parseWritebackProposals } from "@wovera/core";
+import type { AppliedWriteback, VaultApi, VaultDocument } from "@wovera/core";
 import { useCallback, useRef, useState } from "react";
-import { generateTitle, geminiKey, streamReply } from "./gemini";
+import { generateTitle, geminiKey, proposeWritebacks, streamReply } from "./gemini";
 
 /**
  * Runs the reply ritual for a just-kept entry:
@@ -14,6 +14,8 @@ export interface ReplyState {
   status: "idle" | "thinking" | "streaming" | "done" | "error";
   text: string;
   sources: { ulid: string; title: string }[];
+  /** Pages woven from this entry — the "Held for you" cards. */
+  held: AppliedWriteback[];
   error: string | null;
 }
 
@@ -22,6 +24,7 @@ export function useReply(vault: VaultApi | null) {
     status: "idle",
     text: "",
     sources: [],
+    held: [],
     error: null,
   });
   const running = useRef(false);
@@ -34,12 +37,13 @@ export function useReply(vault: VaultApi | null) {
           status: "error",
           text: "",
           sources: [],
+          held: [],
           error: "The assistant isn't connected yet — the entry is kept safely.",
         });
         return;
       }
       running.current = true;
-      setState({ status: "thinking", text: "", sources: [], error: null });
+      setState({ status: "thinking", text: "", sources: [], held: [], error: null });
       try {
         const ctx = await buildReplyContext(vault, entry);
         setState((s) => ({ ...s, status: "streaming", sources: ctx.sources }));
@@ -55,6 +59,26 @@ export function useReply(vault: VaultApi | null) {
         // The entry's real name, quietly, on the cheapest model.
         const title = await generateTitle(entry.bodyMd);
         if (title) await vault.updateDocument(entry.ulid, { title });
+        // The writeback ritual: durable knowledge, held — visibly, undoably.
+        const finalEntry = { ulid: entry.ulid, title: title ?? entry.title };
+        const wiki = await vault.listByType("wiki", 200);
+        const byShelf = new Map<string, string[]>();
+        for (const page of wiki) {
+          const shelf = page.shelf ?? "Unshelved";
+          byShelf.set(shelf, [...(byShelf.get(shelf) ?? []), page.title]);
+        }
+        const pagesList = [...byShelf.entries()]
+          .map(([shelf, titles]) => `${shelf}:\n${titles.map((t) => `- ${t}`).join("\n")}`)
+          .join("\n\n");
+        const raw = await proposeWritebacks(
+          `EXISTING PAGES BY SHELF:\n${pagesList}\n\n---\n\nENTRY "${finalEntry.title}":\n${entry.bodyMd}\n\n---\n\nREPLY GIVEN:\n${reply}`,
+        );
+        if (raw) {
+          for (const proposal of parseWritebackProposals(raw)) {
+            const applied = await applyWriteback(vault, proposal, finalEntry);
+            if (applied) setState((s) => ({ ...s, held: [...s.held, applied] }));
+          }
+        }
       } catch (err) {
         const code = err instanceof Error ? err.message : "";
         const message =
@@ -72,7 +96,7 @@ export function useReply(vault: VaultApi | null) {
   );
 
   const reset = useCallback(
-    () => setState({ status: "idle", text: "", sources: [], error: null }),
+    () => setState({ status: "idle", text: "", sources: [], held: [], error: null }),
     [],
   );
 
