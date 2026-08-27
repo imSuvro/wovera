@@ -36,7 +36,9 @@ export function AskPanel({ question, onDone }: { question: string; onDone?: () =
       if (!geminiKey()) {
         if (!cancelled) {
           setStatus("error");
-          setAnswer("The assistant isn't connected yet.");
+          setAnswer(
+            "Wovera can't answer on this build yet — your pages are all still here to open.",
+          );
           onDoneRef.current?.();
         }
         return;

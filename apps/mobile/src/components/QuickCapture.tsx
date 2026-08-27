@@ -2,7 +2,7 @@ import { applyRoute, parseRouteResult } from "@wovera/core";
 import type { AppliedRoute } from "@wovera/core";
 import { useState } from "react";
 import { Keyboard, Pressable, StyleSheet, Text, TextInput } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 import { routeCapture } from "../assistant/gemini";
 import { remindersAvailable, scheduleReminder } from "../capture/notifications";
 import { fonts, space } from "../theme/tokens";
@@ -40,8 +40,8 @@ export function QuickCapture({
       let chipText = applied.chip;
       if (applied.kind === "reminder" && applied.remindAtMs) {
         const rang = await scheduleReminder(applied.remindAtMs, applied.doc.title, capture);
-        if (!rang && !remindersAvailable) chipText += " · this build can't ring the bell yet";
-        else if (!rang) chipText += " · pings are silenced on this phone";
+        if (!rang && !remindersAvailable) chipText += " · no bell on this phone yet";
+        else if (!rang) chipText += " · the bell is silenced on this phone";
       }
       setText("");
       onFiled?.(applied, chipText);
@@ -75,7 +75,7 @@ export function QuickCapture({
         accessibilityLabel="Put something down"
       />
       {open ? (
-        <Animated.View entering={FadeIn.duration(200)} style={styles.holdWrap}>
+        <Animated.View entering={FadeInDown.duration(360)} style={styles.holdWrap}>
           <Pressable onPress={() => void submit()} disabled={busy || !text.trim()} hitSlop={10}>
             {/* The plate's exact words, always — busy just dims the light. */}
             <Text

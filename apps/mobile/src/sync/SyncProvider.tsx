@@ -37,6 +37,31 @@ interface SyncContextValue {
 
 const SyncContext = createContext<SyncContextValue | null>(null);
 
+const NO_ACCOUNT_YET =
+  "This build can't reach your account yet — everything you keep stays here on this device.";
+
+/**
+ * The provider's words never reach the door. Auth failures are translated
+ * into the house's voice; anything unrecognized becomes a plain, honest
+ * line rather than a raw server string.
+ */
+function houseVoice(raw: string): string {
+  const m = raw.toLowerCase();
+  if (m.includes("invalid login") || m.includes("invalid credentials"))
+    return "That email and password don't open this door. Try again.";
+  if (m.includes("already registered") || m.includes("already exists"))
+    return "There's already a house at this email — sign in instead.";
+  if (m.includes("confirm") && m.includes("email"))
+    return "Check your email to confirm the address, then sign in.";
+  if (m.includes("rate") || m.includes("too many"))
+    return "Too many tries just now — wait a moment and try again.";
+  if (m.includes("network") || m.includes("fetch") || m.includes("timeout"))
+    return "The house couldn't reach your account just now. Try again in a moment.";
+  if (m.includes("password"))
+    return "Your password needs eight characters or more — it guards the door.";
+  return "That didn't open the door. Try again in a moment — nothing here has been lost.";
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const vault = useVault();
   const [status, setStatus] = useState<SyncStatus>(authConfigured ? "loading" : "off");
@@ -83,7 +108,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setMnemonic(words);
       setStatus("showPhrase"); // shown once; confirm → ready + first upload
     } catch {
-      setError("This app build can't generate a secure key yet — update the app.");
+      setError(
+        "This build can't cut your twelve words yet. Everything you keep stays safe on this device until it can.",
+      );
       setStatus("ready"); // signed in, local-only until the new build
     }
   }, [vault, syncNow]);
@@ -109,15 +136,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [resolveKeyState]);
 
   const signIn = useCallback(async (mail: string, password: string) => {
-    if (!supabase) return "Sync isn't configured yet.";
+    if (!supabase) return NO_ACCOUNT_YET;
     const { error: err } = await supabase.auth.signInWithPassword({ email: mail, password });
-    return err ? err.message : null;
+    return err ? houseVoice(err.message) : null;
   }, []);
 
   const signUp = useCallback(async (mail: string, password: string) => {
-    if (!supabase) return "Sync isn't configured yet.";
+    if (!supabase) return NO_ACCOUNT_YET;
     const { error: err } = await supabase.auth.signUp({ email: mail, password });
-    return err ? err.message : null;
+    return err ? houseVoice(err.message) : null;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -133,14 +160,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const restoreFromPhrase = useCallback(
     async (words: string) => {
       const entropy = mnemonicToRootEntropy(words);
-      if (!entropy) return "That's not a valid twelve-word phrase — check the spelling.";
+      if (!entropy)
+        return "Those aren't the twelve words — check the spelling and the order, then try again.";
       await saveRootEntropy(entropy);
       keyRef.current = deriveVaultKey(entropy);
       setStatus("ready");
       await syncNow();
       // Wrong words decrypt nothing: surface it honestly.
       if ((await hasRootEntropy()) && lastSync && lastSync.undecryptable > 0) {
-        return "Those words don't open this vault — every synced entry failed to decrypt.";
+        return "Those words don't open this vault — nothing came through with them. Check the order and try again; nothing here has been lost.";
       }
       return null;
     },

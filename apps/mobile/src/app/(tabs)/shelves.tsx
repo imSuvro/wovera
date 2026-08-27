@@ -145,7 +145,8 @@ export default function ShelvesScreen() {
         {hits !== null ? (
           hits.length === 0 && !asking ? (
             <Text style={[styles.empty, { color: theme.inkSoft }]}>
-              Nothing on the shelves matches “{trimmed}” yet.
+              Nothing on the shelves holds “{trimmed}” yet — tell the lamp about it and a page will
+              grow here.
             </Text>
           ) : (
             hits.map((hit) => (

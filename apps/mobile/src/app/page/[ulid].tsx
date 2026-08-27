@@ -87,7 +87,8 @@ export default function PageScreen() {
       </Pressable>
       {missing ? (
         <Text style={[styles.missing, { color: theme.inkSoft }]}>
-          This page isn't in the vault. It may not have been written yet.
+          That page isn't on the shelves yet — nothing of yours is missing; it may simply not be
+          written.
         </Text>
       ) : doc ? (
         <View style={styles.readerWrap}>

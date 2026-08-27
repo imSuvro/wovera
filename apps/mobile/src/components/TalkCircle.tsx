@@ -28,7 +28,7 @@ const FLAME_SPRING = { duration: 150, dampingRatio: 1 };
  */
 export function TalkCircle({
   onPress,
-  label = "TAP AND TALK",
+  label = "TALK TO ME",
   listening = false,
   volume,
 }: {
@@ -98,9 +98,9 @@ export function TalkCircle({
               !reducedMotion && {
                 // The resting breath — calm, 4.5s, barely there.
                 animationName: {
-                  "0%": { transform: [{ scale: 1 }], opacity: 1 },
-                  "50%": { transform: [{ scale: 1.035 }], opacity: 0.92 },
-                  "100%": { transform: [{ scale: 1 }], opacity: 1 },
+                  "0%": { transform: [{ scale: 1 }] },
+                  "50%": { transform: [{ scale: 1.035 }] },
+                  "100%": { transform: [{ scale: 1 }] },
                 },
                 animationDuration: "4.5s",
                 animationIterationCount: "infinite",

@@ -24,7 +24,11 @@ export function AuthGate() {
 
   const submit = async () => {
     if (busy || !email.trim() || password.length < 8) {
-      setError(password.length < 8 ? "Password needs at least 8 characters." : null);
+      setError(
+        password.length < 8
+          ? "Your password needs eight characters or more — it guards the door."
+          : null,
+      );
       return;
     }
     setBusy(true);
@@ -45,7 +49,7 @@ export function AuthGate() {
         <Text style={[styles.sub, { color: theme.inkSoft }]}>
           {mode === "in"
             ? "Sign in and the lamp comes on."
-            : "Your second brain — private, yours, everywhere you are."}
+            : "Tell it anything. It keeps your words exactly, and hands them back when they matter."}
         </Text>
       </View>
 
@@ -63,7 +67,7 @@ export function AuthGate() {
         <TextInput
           value={password}
           onChangeText={setPassword}
-          placeholder="Password (8+ characters)"
+          placeholder="Password — eight characters or more"
           placeholderTextColor={theme.inkFaint}
           secureTextEntry
           style={[styles.input, { color: theme.ink, borderColor: theme.line }]}
@@ -72,8 +76,9 @@ export function AuthGate() {
         {error ? <Text style={[styles.error, { color: theme.inkSoft }]}>{error}</Text> : null}
         <Tappable onPress={() => void submit()} disabled={busy}>
           <View style={[styles.primary, { backgroundColor: theme.accent }]}>
-            <Text style={styles.primaryText}>
-              {busy ? "One moment…" : mode === "in" ? "Sign in" : "Create account"}
+            {/* The words hold steady; only the light dims while the house works. */}
+            <Text style={[styles.primaryText, { opacity: busy ? 0.45 : 1 }]}>
+              {mode === "in" ? "Sign in" : "Create account"}
             </Text>
           </View>
         </Tappable>
@@ -160,12 +165,12 @@ export function RestorePhraseScreen() {
           multiline
           autoCapitalize="none"
           style={[styles.phraseInput, { color: theme.ink }]}
-          accessibilityLabel="Recovery phrase"
+          accessibilityLabel="Your twelve words"
         />
         {error ? <Text style={[styles.error, { color: theme.inkSoft }]}>{error}</Text> : null}
         <Tappable onPress={() => void submit()} disabled={busy}>
           <View style={[styles.primary, { backgroundColor: theme.accent }]}>
-            <Text style={styles.primaryText}>{busy ? "Opening…" : "Open my vault"}</Text>
+            <Text style={[styles.primaryText, { opacity: busy ? 0.45 : 1 }]}>Open my vault</Text>
           </View>
         </Tappable>
       </Card>

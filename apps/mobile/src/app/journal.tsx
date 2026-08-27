@@ -49,7 +49,7 @@ export default function JournalScreen() {
       <Tappable onPress={() => router.back()} hitSlop={12}>
         <Text style={[styles.back, { color: theme.inkFaint }]}>‹ Back</Text>
       </Tappable>
-      <Text style={[styles.title, { color: theme.ink }]}>Journal</Text>
+      <Text style={[styles.title, { color: theme.ink }]}>The Journal</Text>
       <Text style={[styles.sub, { color: theme.inkSoft }]}>
         {entries.length} {entries.length === 1 ? "entry" : "entries"}, word for word.
       </Text>

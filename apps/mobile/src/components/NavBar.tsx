@@ -36,7 +36,7 @@ function NavLamp({ lit, onPress }: { lit: boolean; onPress: () => void }) {
             // The resting breath: 6s, barely there — alive, not busy.
             animationName: {
               "0%": { transform: [{ scale: 1 }] },
-              "50%": { transform: [{ scale: 1.03 }] },
+              "50%": { transform: [{ scale: 1.035 }] },
               "100%": { transform: [{ scale: 1 }] },
             },
             animationDuration: "6s",

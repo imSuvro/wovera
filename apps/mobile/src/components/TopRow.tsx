@@ -37,7 +37,7 @@ export function TopRow({ minimal = false }: { minimal?: boolean }) {
       <Pressable
         onPress={() => setMode(NEXT_MODE[mode])}
         accessibilityRole="button"
-        accessibilityLabel={`The light is ${tag} — tap to change it`}
+        accessibilityLabel={`The light is ${tag}`}
         hitSlop={12}
       >
         <Text style={[styles.text, { color: theme.inkFaint }]}>{tag}</Text>

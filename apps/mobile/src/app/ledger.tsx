@@ -71,7 +71,7 @@ export default function LedgerScreen() {
           const pill = pillColors[row.kind];
           return (
             <Animated.View
-              entering={FadeInDown.duration(280).delay(Math.min(i, 10) * 35)}
+              entering={FadeInDown.duration(360).delay(Math.min(i, 10) * 60)}
               key={row.id}
               style={[styles.row, { borderBottomColor: theme.line }]}
             >
@@ -86,7 +86,7 @@ export default function LedgerScreen() {
                 {row.diffRef ? (
                   <Pressable onPress={() => void restore(row)} hitSlop={8}>
                     <Text style={[styles.restore, { color: theme.accentDeep }]}>
-                      {restoring === row.id ? "Restoring…" : "Restore the page to before this"}
+                      {restoring === row.id ? "Putting it back" : "Restore the page to before this"}
                     </Text>
                   </Pressable>
                 ) : null}
