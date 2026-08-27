@@ -8,7 +8,7 @@
   "scripts": {
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "typecheck": "tsc --build",
+    "typecheck": "tsc --build && pnpm --filter @wovera/mobile exec tsc --noEmit",
     "test": "vitest run",
     "verify": "pnpm lint && pnpm typecheck && pnpm test"
   },
@@ -16,6 +16,7 @@
     "@eslint/js": "^9.18.0",
     "@types/node": "^22.10.0",
     "eslint": "^9.18.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.4.2",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.20.0",
