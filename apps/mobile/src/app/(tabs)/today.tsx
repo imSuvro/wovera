@@ -75,10 +75,21 @@ function firstLine(bodyMd: string): string {
   for (const raw of bodyMd.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith("#") || line.startsWith("-") || line.startsWith("|")) continue;
-    if (line.startsWith("Date:") || line.startsWith("[[") || line.startsWith("!")) continue;
+    if (line.startsWith("[[") || line.startsWith("!") || line.startsWith(">")) continue;
+    // Metadata lines ("Date: …", "Source: …", "Tags: …") are filing, not prose —
+    // a short word before a colon at the line's start gives them away.
+    if (/^[\w /-]{1,18}:\s/.test(line)) continue;
     return line.replace(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g, (_m, t: string, a?: string) => a ?? t);
   }
   return "";
+}
+
+/** A pull-quote is a breath, not a chapter — clamp at a sentence boundary. */
+function clampQuote(text: string): string {
+  if (text.length <= 200) return text;
+  const cut = text.slice(0, 200);
+  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("? "), cut.lastIndexOf("! "));
+  return end > 60 ? cut.slice(0, end + 1) : `${cut.trimEnd()}…`;
 }
 
 interface Thread {
@@ -137,7 +148,7 @@ export default function TodayScreen() {
           .filter((c) => c.text.length > 20)
           .sort((a, b) => (a.doc.ulid < b.doc.ulid ? -1 : 1));
         const pick = candidates[dayIndex % Math.max(1, candidates.length)];
-        if (pick) setLine({ text: pick.text, from: pick.doc });
+        if (pick) setLine({ text: clampQuote(pick.text), from: pick.doc });
       }
     })();
     return () => {
