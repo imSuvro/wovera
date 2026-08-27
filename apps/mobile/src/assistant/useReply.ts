@@ -46,10 +46,24 @@ export function useReply(vault: VaultApi | null) {
       setState({ status: "thinking", text: "", sources: [], held: [], error: null });
       try {
         const ctx = await buildReplyContext(vault, entry);
+        // House Rules: how Wovera speaks.
+        const tone = await vault.getSetting("voice_tone");
+        const toneNote =
+          tone === "Straight"
+            ? "\n\nTone override for this reply: be straight — a clear mirror. Skip softening preambles; name things directly, still kind."
+            : tone === "Coach"
+              ? "\n\nTone override for this reply: corner-man energy — brisk, rallying, action-leaning, still grounded only in their pages."
+              : "";
         setState((s) => ({ ...s, status: "streaming", sources: ctx.sources }));
-        const reply = await streamReply(ctx.userPrompt, (soFar) => {
-          setState((s) => (s.status === "streaming" ? { ...s, text: soFar } : s));
-        });
+        const reply = await streamReply(
+          ctx.userPrompt,
+          (soFar) => {
+            setState((s) => (s.status === "streaming" ? { ...s, text: soFar } : s));
+          },
+          undefined,
+          undefined,
+          toneNote,
+        );
         await vault.attachReply(
           entry.ulid,
           reply,

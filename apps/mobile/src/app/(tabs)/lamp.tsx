@@ -5,6 +5,7 @@ import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import { Card } from "../../components/Card";
 import { Screen } from "../../components/Screen";
 import { TalkCircle } from "../../components/TalkCircle";
+import { ThinkingDots } from "../../components/ThinkingDots";
 import { TopRow } from "../../components/TopRow";
 import { Waveform } from "../../components/Waveform";
 import { useReply } from "../../assistant/useReply";
@@ -173,7 +174,7 @@ export default function LampScreen() {
 
             {reply.status === "thinking" ? (
               <Card label="Wovera is reading your story so far">
-                <Text style={[styles.keptSub, { color: theme.inkSoft }]}>…</Text>
+                <ThinkingDots />
               </Card>
             ) : null}
             {reply.status === "streaming" || reply.status === "done" ? (

@@ -96,7 +96,7 @@ export default function TodayScreen() {
       <QuickCapture onRouted={refresh} />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <Card label="Quiet continuity">
+        <Card label="Quiet continuity" index={0}>
           {latest ? (
             <Pressable onPress={() => router.push(`/page/${latest.ulid}`)}>
               <Text style={[styles.body, { color: theme.inkSoft }]}>
@@ -113,9 +113,12 @@ export default function TodayScreen() {
               This space fills as your days do — gently, and only with what you tell it.
             </Text>
           )}
+          <Pressable onPress={() => router.push("/journal")} hitSlop={6}>
+            <Text style={[styles.doorLink, { color: theme.accentDeep }]}>The Journal ›</Text>
+          </Pressable>
         </Card>
 
-        <Card label="Threads being held">
+        <Card label="Threads being held" index={1}>
           {threads.length === 0 ? (
             <Text style={[styles.body, { color: theme.inkSoft }]}>
               Nothing yet. When you put things down, the ones that matter will wait for you here.
@@ -137,7 +140,7 @@ export default function TodayScreen() {
         </Card>
 
         {line ? (
-          <Card label="From your shelves">
+          <Card label="From your shelves" index={2}>
             <Pressable onPress={() => router.push(`/page/${line.from.ulid}`)}>
               <Text style={[styles.quote, { color: theme.inkSoft }]}>“{line.text}”</Text>
               <Text style={[styles.quoteSource, { color: theme.inkFaint }]}>
@@ -151,6 +154,9 @@ export default function TodayScreen() {
           <Text style={[styles.ledgerLink, { color: theme.inkFaint }]}>
             The Ledger — {ledgerCount} entries, nothing hidden ›
           </Text>
+        </Pressable>
+        <Pressable onPress={() => router.push("/rules")} accessibilityRole="link">
+          <Text style={[styles.ledgerLink, { color: theme.inkFaint }]}>House Rules ›</Text>
         </Pressable>
       </ScrollView>
     </Screen>
@@ -169,6 +175,7 @@ const styles = StyleSheet.create({
   threadRow: { paddingVertical: 5 },
   threadTitle: { fontFamily: fonts.uiMedium, fontSize: 14, lineHeight: 20 },
   threadClock: { fontFamily: fonts.ui, fontSize: 12, marginLeft: 12 },
+  doorLink: { fontFamily: fonts.uiMedium, fontSize: 13, marginTop: 8 },
   quote: { fontFamily: fonts.bodyItalic, fontSize: 16, lineHeight: 24 },
   quoteSource: { fontFamily: fonts.ui, fontSize: 12, marginTop: 6 },
   ledgerLink: {

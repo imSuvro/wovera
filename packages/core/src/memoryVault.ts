@@ -165,4 +165,14 @@ export class MemoryVault implements VaultApi {
   async countDocuments(): Promise<number> {
     return this.docs.size;
   }
+
+  private settings = new Map<string, string>();
+
+  async getSetting(key: string): Promise<string | null> {
+    return this.settings.get(key) ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    this.settings.set(key, value);
+  }
 }

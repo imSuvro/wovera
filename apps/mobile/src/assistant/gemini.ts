@@ -52,6 +52,7 @@ export async function streamReply(
   onDelta: (soFar: string) => void,
   signal?: AbortSignal,
   systemPrompt: string = GENTLE_SYSTEM_PROMPT,
+  systemSuffix = "",
 ): Promise<string> {
   const key = geminiKey();
   if (!key) throw new Error("no-key");
@@ -60,7 +61,7 @@ export async function streamReply(
     headers: { "Content-Type": "application/json" },
     signal,
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt }] },
+      systemInstruction: { parts: [{ text: systemPrompt + systemSuffix }] },
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
       safetySettings: SAFETY_SETTINGS,

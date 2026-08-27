@@ -6,6 +6,7 @@ import { Card } from "../../components/Card";
 import { Eyebrow } from "../../components/Eyebrow";
 import { Screen } from "../../components/Screen";
 import { TopRow } from "../../components/TopRow";
+import { shortDate } from "../../lib/dates";
 import { fonts, space } from "../../theme/tokens";
 import { useTheme } from "../../theme/ThemeProvider";
 import { useVault } from "../../vault/VaultProvider";
@@ -102,10 +103,10 @@ export default function ShelvesScreen() {
             </Text>
           </Card>
         ) : (
-          shelves.map((shelf) => (
+          shelves.map((shelf, shelfIndex) => (
             <View key={shelf.shelf} style={styles.shelfBlock}>
-              <Eyebrow>{shelf.shelf}</Eyebrow>
-              <Card style={styles.shelfCard}>
+              <Eyebrow>{`${shelf.shelf} · ${shelf.count}`}</Eyebrow>
+              <Card style={styles.shelfCard} index={Math.min(shelfIndex, 5)}>
                 {(pages.get(shelf.shelf) ?? []).map((page, i, arr) => (
                   <Pressable
                     key={page.ulid}
@@ -116,6 +117,9 @@ export default function ShelvesScreen() {
                     ]}
                   >
                     <Text style={[styles.pageTitle, { color: theme.ink }]}>{page.title}</Text>
+                    <Text style={[styles.pageMeta, { color: theme.inkFaint }]} numberOfLines={1}>
+                      last tended {shortDate(page.updatedAt)}
+                    </Text>
                   </Pressable>
                 ))}
               </Card>
@@ -152,6 +156,12 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontFamily: fonts.bodyMedium,
     fontSize: 16,
+  },
+  pageMeta: {
+    fontFamily: fonts.ui,
+    fontSize: 11,
+    letterSpacing: 0.3,
+    marginTop: 2,
   },
   snippet: {
     fontFamily: fonts.body,

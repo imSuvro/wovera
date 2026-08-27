@@ -69,6 +69,8 @@ export interface VaultApi {
   attachReply(ulid: string, replyMd: string, sourceTitles: string[]): Promise<void>;
   /** Titles of pages a document cites (links of the given kind). */
   getLinkTargets(ulid: string, kind: LinkKind): Promise<string[]>;
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string): Promise<void>;
   appendLedger(
     kind: LedgerKind,
     summary: string,
