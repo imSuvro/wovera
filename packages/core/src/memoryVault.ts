@@ -1,6 +1,7 @@
 import { ulid } from "ulidx";
 import type { DocumentType, LedgerKind, VaultDocument } from "./index";
 import type { LedgerEntry, SearchHit, ShelfSummary, VaultApi } from "./vault";
+import { extractWikilinks } from "./wikilinks";
 
 const DEFAULT_LEDGER: Record<DocumentType, LedgerKind> = {
   journal: "journal",
@@ -64,6 +65,21 @@ export class MemoryVault implements VaultApi {
 
   async getDocument(docUlid: string): Promise<VaultDocument | null> {
     return this.docs.get(docUlid) ?? null;
+  }
+
+  async getDocumentByTitle(title: string): Promise<VaultDocument | null> {
+    const lower = title.toLowerCase();
+    for (const doc of this.docs.values()) {
+      if (doc.title.toLowerCase() === lower) return doc;
+    }
+    return null;
+  }
+
+  async getBacklinks(title: string): Promise<VaultDocument[]> {
+    const lower = title.toLowerCase();
+    return [...this.docs.values()]
+      .filter((d) => extractWikilinks(d.bodyMd).some((t) => t.toLowerCase() === lower))
+      .sort((a, b) => a.title.localeCompare(b.title));
   }
 
   async listByType(type: DocumentType, limit = 100): Promise<VaultDocument[]> {

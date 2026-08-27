@@ -160,3 +160,19 @@ describe("toFtsQuery", () => {
     expect(toFtsQuery("  ")).toBe("");
   });
 });
+
+describe("title lookup and backlinks", () => {
+  it("resolves titles case-insensitively and finds backlinks", async () => {
+    const { vault } = await openTestVault();
+    await vault.createDocument({ type: "wiki", title: "Sleep Repair", bodyMd: "rest" });
+    await vault.createDocument({
+      type: "journal",
+      title: "Reset Night",
+      bodyMd: "Working on [[Sleep Repair]] tonight.",
+    });
+    const byTitle = await vault.getDocumentByTitle("sleep repair");
+    expect(byTitle?.title).toBe("Sleep Repair");
+    const backlinks = await vault.getBacklinks("SLEEP REPAIR");
+    expect(backlinks.map((d) => d.title)).toEqual(["Reset Night"]);
+  });
+});

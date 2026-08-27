@@ -53,6 +53,10 @@ export interface VaultApi {
     ledgerEntry?: { kind: LedgerKind; summary: string },
   ): Promise<VaultDocument>;
   getDocument(ulid: string): Promise<VaultDocument | null>;
+  /** Case-insensitive title lookup — how wikilinks resolve. */
+  getDocumentByTitle(title: string): Promise<VaultDocument | null>;
+  /** Documents whose bodies link to this title. */
+  getBacklinks(title: string): Promise<VaultDocument[]>;
   listByType(type: DocumentType, limit?: number): Promise<VaultDocument[]>;
   listShelf(shelf: string): Promise<VaultDocument[]>;
   listShelves(): Promise<ShelfSummary[]>;
@@ -181,6 +185,25 @@ export class SqliteVault implements VaultApi {
   async getDocument(docUlid: string): Promise<VaultDocument | null> {
     const rows = await this.db.select().from(documents).where(eq(documents.ulid, docUlid)).limit(1);
     return rows[0] ? toDoc(rows[0]) : null;
+  }
+
+  async getDocumentByTitle(title: string): Promise<VaultDocument | null> {
+    const rows = await this.db
+      .select()
+      .from(documents)
+      .where(sql`${documents.title} = ${title} COLLATE NOCASE`)
+      .limit(1);
+    return rows[0] ? toDoc(rows[0]) : null;
+  }
+
+  async getBacklinks(title: string): Promise<VaultDocument[]> {
+    const rows = await this.db
+      .select({ doc: documents })
+      .from(links)
+      .innerJoin(documents, eq(documents.ulid, links.fromUlid))
+      .where(sql`${links.targetTitle} = ${title} COLLATE NOCASE`)
+      .orderBy(documents.title);
+    return rows.map((r) => toDoc(r.doc));
   }
 
   async listByType(type: DocumentType, limit = 100): Promise<VaultDocument[]> {

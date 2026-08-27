@@ -1,6 +1,7 @@
 import type { SearchHit, ShelfSummary, VaultDocument } from "@wovera/core";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Card } from "../../components/Card";
 import { Eyebrow } from "../../components/Eyebrow";
 import { Screen } from "../../components/Screen";
@@ -85,10 +86,12 @@ export default function ShelvesScreen() {
             </Card>
           ) : (
             hits.map((hit) => (
-              <Card key={hit.ulid}>
-                <Text style={[styles.pageTitle, { color: theme.ink }]}>{hit.title}</Text>
-                <Text style={[styles.snippet, { color: theme.inkSoft }]}>{hit.snippet}</Text>
-              </Card>
+              <Pressable key={hit.ulid} onPress={() => router.push(`/page/${hit.ulid}`)}>
+                <Card>
+                  <Text style={[styles.pageTitle, { color: theme.ink }]}>{hit.title}</Text>
+                  <Text style={[styles.snippet, { color: theme.inkSoft }]}>{hit.snippet}</Text>
+                </Card>
+              </Pressable>
             ))
           )
         ) : shelves.length === 0 ? (
@@ -104,15 +107,16 @@ export default function ShelvesScreen() {
               <Eyebrow>{shelf.shelf}</Eyebrow>
               <Card style={styles.shelfCard}>
                 {(pages.get(shelf.shelf) ?? []).map((page, i, arr) => (
-                  <View
+                  <Pressable
                     key={page.ulid}
+                    onPress={() => router.push(`/page/${page.ulid}`)}
                     style={[
                       styles.pageRow,
                       i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.line },
                     ]}
                   >
                     <Text style={[styles.pageTitle, { color: theme.ink }]}>{page.title}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </Card>
             </View>
