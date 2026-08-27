@@ -18,11 +18,12 @@ function nowLabel(): string {
 const NEXT_MODE: Record<ThemeMode, ThemeMode> = { sky: "dusk", dusk: "linen", linen: "sky" };
 
 /**
- * The quiet dated row every screen in the design opens with — day and time on
- * the left, the current skin on the right. Tapping the skin cycles
- * sky → dusk → linen (the House Rules theme override, persisted).
+ * The quiet dated row most rooms open with — day and time on the left, the
+ * current skin on the right. Tapping the skin cycles sky → dusk → linen
+ * (the House Rules theme override, persisted). `minimal` keeps only the
+ * tiny corner tag — for rooms whose greeting owns the date (Plate V).
  */
-export function TopRow() {
+export function TopRow({ minimal = false }: { minimal?: boolean }) {
   const { theme, name, mode, setMode } = useTheme();
   const [label, setLabel] = useState(nowLabel);
   useEffect(() => {
@@ -31,12 +32,12 @@ export function TopRow() {
   }, []);
   const tag = mode === "sky" ? name : `${name} · pinned`;
   return (
-    <View style={styles.row}>
-      <Text style={[styles.text, { color: theme.inkFaint }]}>{label}</Text>
+    <View style={[styles.row, minimal && styles.rowMinimal]}>
+      {minimal ? null : <Text style={[styles.text, { color: theme.inkFaint }]}>{label}</Text>}
       <Pressable
         onPress={() => setMode(NEXT_MODE[mode])}
         accessibilityRole="button"
-        accessibilityLabel={`Theme: ${tag}. Tap to change.`}
+        accessibilityLabel={`The light is ${tag} — tap to change it`}
         hitSlop={12}
       >
         <Text style={[styles.text, { color: theme.inkFaint }]}>{tag}</Text>
@@ -51,6 +52,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: space.l,
   },
+  rowMinimal: { justifyContent: "flex-end", marginBottom: space.s },
   text: {
     fontFamily: fonts.ui,
     fontSize: 12,
