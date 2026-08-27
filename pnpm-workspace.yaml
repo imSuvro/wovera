@@ -4,6 +4,8 @@ packages:
 # pnpm's build-script allowlist — every dependency install script needs an
 # explicit yes here. esbuild's script installs its platform binary (vitest dep).
 allowBuilds:
+  # Test-only native SQLite driver — vitest runs the real engine incl. FTS5.
+  better-sqlite3: true
   esbuild: true
 minimumReleaseAgeExclude:
   - "@expo/cli@57.0.19"
@@ -26,3 +28,4 @@ minimumReleaseAgeExclude:
   - expo-router@57.0.17
   - expo-system-ui@57.0.3
   - expo@57.0.17
+  - expo-sqlite@57.0.2

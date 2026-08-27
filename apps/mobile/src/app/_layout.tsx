@@ -16,6 +16,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
 import { ReduceMotion, ReducedMotionConfig } from "react-native-reanimated";
 import { WebFrame } from "../components/WebFrame";
+import { VaultProvider } from "../vault/VaultProvider";
 import { SweepHost } from "../theme/SweepHost";
 import type { SweepAPI } from "../theme/sweep";
 import { ThemeProvider, useTheme } from "../theme/ThemeProvider";
@@ -62,9 +63,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider getSweep={() => sweepRef.current}>
-      {/* Honor the OS reduce-motion setting everywhere, from the first animation. */}
-      <ReducedMotionConfig mode={ReduceMotion.System} />
-      <AppShell sweepRef={sweepRef} />
+      <VaultProvider>
+        {/* Honor the OS reduce-motion setting everywhere, from the first animation. */}
+        <ReducedMotionConfig mode={ReduceMotion.System} />
+        <AppShell sweepRef={sweepRef} />
+      </VaultProvider>
     </ThemeProvider>
   );
 }

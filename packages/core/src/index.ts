@@ -36,3 +36,13 @@ export interface VaultDocument {
 }
 
 export const CORE_VERSION = "0.0.1";
+
+export { decodeHlc, encodeHlc, hlcMerge, hlcNext } from "./hlc";
+export type { Hlc } from "./hlc";
+export { MIGRATIONS, runMigrations } from "./migrations";
+export type { MigrationIO } from "./migrations";
+export * as schema from "./schema";
+export { SqliteVault, toFtsQuery } from "./vault";
+export type { LedgerEntry, SearchHit, ShelfSummary, VaultApi, VaultDb } from "./vault";
+export { MemoryVault } from "./memoryVault";
+export { extractWikilinks } from "./wikilinks";

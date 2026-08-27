@@ -8,16 +8,7 @@
  */
 import type { DocumentType } from "@wovera/core";
 
-/** Extracts [[wikilink]] targets from a markdown body. */
-export function extractWikilinks(bodyMd: string): string[] {
-  const links: string[] = [];
-  const pattern = /\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/g;
-  for (const match of bodyMd.matchAll(pattern)) {
-    const target = match[1]?.trim();
-    if (target) links.push(target);
-  }
-  return links;
-}
+export { extractWikilinks } from "@wovera/core";
 
 /** Maps a vault directory name to the Wovera document type it holds. */
 export function documentTypeForVaultDir(dir: string): DocumentType | null {
