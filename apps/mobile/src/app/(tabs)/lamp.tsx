@@ -1,6 +1,6 @@
 import type { VaultDocument } from "@wovera/core";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Card } from "../../components/Card";
 import { Screen } from "../../components/Screen";
@@ -9,6 +9,7 @@ import { ThinkingDots } from "../../components/ThinkingDots";
 import { TopRow } from "../../components/TopRow";
 import { Waveform } from "../../components/Waveform";
 import { useReply } from "../../assistant/useReply";
+import { onLampTap } from "../../capture/lampBus";
 import { useSpeechCapture } from "../../capture/useSpeechCapture";
 import { fonts, space } from "../../theme/tokens";
 import { useTheme } from "../../theme/ThemeProvider";
@@ -87,6 +88,14 @@ export default function LampScreen() {
       void start();
     }
   };
+
+  // The NavLamp, tapped while this room is already open, means the same
+  // thing as the big lamp: start talking (or finish, if already listening).
+  const lampTapRef = useRef(onCirclePress);
+  useEffect(() => {
+    lampTapRef.current = onCirclePress;
+  });
+  useEffect(() => onLampTap(() => lampTapRef.current()), []);
 
   return (
     <Screen>
