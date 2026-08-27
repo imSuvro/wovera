@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
-import { ulid } from "ulidx";
+import { newUlid as ulid } from "./ids";
 import { encodeHlc, hlcNext } from "./hlc";
 import type { Hlc } from "./hlc";
 import type { DocumentType, LedgerKind, LinkKind, VaultDocument } from "./index";

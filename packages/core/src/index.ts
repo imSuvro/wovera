@@ -49,6 +49,7 @@ export * as schema from "./schema";
 export { SqliteVault, toFtsQuery } from "./vault";
 export type { LedgerEntry, SearchHit, ShelfSummary, VaultApi, VaultDb } from "./vault";
 export { MemoryVault } from "./memoryVault";
+export { newUlid } from "./ids";
 export { extractWikilinks } from "./wikilinks";
 export { buildReplyContext, significantTerms } from "./assistant/context";
 export type { ReplyContext } from "./assistant/context";

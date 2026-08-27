@@ -1,4 +1,4 @@
-import { ulid } from "ulidx";
+import { newUlid as ulid } from "./ids";
 import type { DocumentType, LedgerKind, LinkKind, VaultDocument } from "./index";
 import type { LedgerEntry, SearchHit, ShelfSummary, VaultApi } from "./vault";
 import { extractWikilinks } from "./wikilinks";

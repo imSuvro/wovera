@@ -2,7 +2,7 @@ import { SqliteVault, runMigrations } from "@wovera/core";
 import type { VaultApi, VaultDb } from "@wovera/core";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import { openDatabaseSync } from "expo-sqlite";
-import { ulid } from "ulidx";
+import { newUlid as ulid } from "@wovera/core";
 import { seedExampleVault } from "./seed";
 
 /**
