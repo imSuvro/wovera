@@ -19,6 +19,8 @@ export const documents = sqliteTable("documents", {
   hlc: text("hlc").notNull(),
   /** Raw dictation audio file, when the entry was spoken. */
   audioUri: text("audio_uri"),
+  /** The assistant's reply — beside the entry, never inside the verbatim body. */
+  replyMd: text("reply_md"),
 });
 
 export const links = sqliteTable(

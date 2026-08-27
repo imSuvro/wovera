@@ -21,6 +21,7 @@ export default function PageScreen() {
   const { ulid } = useLocalSearchParams<{ ulid: string }>();
   const [doc, setDoc] = useState<VaultDocument | null>(null);
   const [backlinks, setBacklinks] = useState<VaultDocument[]>([]);
+  const [replySources, setReplySources] = useState<string[]>([]);
   const [missing, setMissing] = useState(false);
 
   useEffect(() => {
@@ -34,8 +35,14 @@ export default function PageScreen() {
         return;
       }
       setDoc(found);
-      const linked = await vault.getBacklinks(found.title);
-      if (!cancelled) setBacklinks(linked.filter((d) => d.ulid !== found.ulid));
+      const [linked, sources] = await Promise.all([
+        vault.getBacklinks(found.title),
+        vault.getLinkTargets(found.ulid, "reply"),
+      ]);
+      if (!cancelled) {
+        setBacklinks(linked.filter((d) => d.ulid !== found.ulid));
+        setReplySources(sources);
+      }
     })();
     return () => {
       cancelled = true;
@@ -71,6 +78,29 @@ export default function PageScreen() {
           <Text style={[styles.title, { color: theme.ink }]}>{doc.title}</Text>
           <Text style={[styles.provenance, { color: theme.inkFaint }]}>{provenance}</Text>
           <MarkdownBody bodyMd={doc.bodyMd} onWikilink={openByTitle} />
+          {doc.replyMd ? (
+            <View style={styles.replyBlock}>
+              <Card label="Wovera replied">
+                <MarkdownBody bodyMd={doc.replyMd} onWikilink={openByTitle} />
+                {replySources.length > 0 ? (
+                  <View style={styles.chipRow}>
+                    {replySources.map((title) => (
+                      <Pressable
+                        key={title}
+                        onPress={() => openByTitle(title)}
+                        style={[
+                          styles.chip,
+                          { borderColor: theme.line, backgroundColor: theme.surface2 },
+                        ]}
+                      >
+                        <Text style={[styles.chipText, { color: theme.accentDeep }]}>{title}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+              </Card>
+            </View>
+          ) : null}
           {backlinks.length > 0 ? (
             <View style={styles.backlinksBlock}>
               <Card label="Linked from">
@@ -114,6 +144,10 @@ const styles = StyleSheet.create({
     marginBottom: space.m,
   },
   scroll: { paddingBottom: space.xxl },
+  replyBlock: { marginTop: space.l },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: space.s },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  chipText: { fontFamily: fonts.uiMedium, fontSize: 12 },
   backlinksBlock: { marginTop: space.l },
   backlinkRow: { paddingVertical: 8 },
   backlinkTitle: { fontFamily: fonts.bodyMedium, fontSize: 15 },

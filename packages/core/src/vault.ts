@@ -3,7 +3,7 @@ import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
 import { ulid } from "ulidx";
 import { encodeHlc, hlcNext } from "./hlc";
 import type { Hlc } from "./hlc";
-import type { DocumentType, LedgerKind, VaultDocument } from "./index";
+import type { DocumentType, LedgerKind, LinkKind, VaultDocument } from "./index";
 import { documents, ledger, links, oplog, settings } from "./schema";
 import { extractWikilinks } from "./wikilinks";
 
@@ -62,6 +62,10 @@ export interface VaultApi {
   listShelf(shelf: string): Promise<VaultDocument[]>;
   listShelves(): Promise<ShelfSummary[]>;
   search(query: string, limit?: number): Promise<SearchHit[]>;
+  /** Stores the assistant's reply beside an entry + its citation links. */
+  attachReply(ulid: string, replyMd: string, sourceTitles: string[]): Promise<void>;
+  /** Titles of pages a document cites (links of the given kind). */
+  getLinkTargets(ulid: string, kind: LinkKind): Promise<string[]>;
   appendLedger(kind: LedgerKind, summary: string, docUlid?: string, ts?: number): Promise<void>;
   listLedger(limit?: number): Promise<LedgerEntry[]>;
   countDocuments(): Promise<number>;
@@ -145,6 +149,7 @@ export class SqliteVault implements VaultApi {
       createdAt: ts,
       updatedAt: ts,
       audioUri: input.audioUri ?? null,
+      replyMd: null,
     };
     await this.db.insert(documents).values({ ...doc, hlc });
     await this.writeLinks(doc);
@@ -253,6 +258,26 @@ export class SqliteVault implements VaultApi {
     return rows;
   }
 
+  async attachReply(docUlid: string, replyMd: string, sourceTitles: string[]): Promise<void> {
+    await this.db.update(documents).set({ replyMd }).where(eq(documents.ulid, docUlid));
+    await this.db.delete(links).where(and(eq(links.fromUlid, docUlid), eq(links.kind, "reply")));
+    const unique = [...new Set(sourceTitles)];
+    if (unique.length > 0) {
+      await this.db
+        .insert(links)
+        .values(unique.map((targetTitle) => ({ fromUlid: docUlid, targetTitle, kind: "reply" })));
+    }
+  }
+
+  async getLinkTargets(docUlid: string, kind: LinkKind): Promise<string[]> {
+    const rows = await this.db
+      .select({ targetTitle: links.targetTitle })
+      .from(links)
+      .where(and(eq(links.fromUlid, docUlid), eq(links.kind, kind)))
+      .orderBy(links.targetTitle);
+    return rows.map((r) => r.targetTitle);
+  }
+
   async appendLedger(
     kind: LedgerKind,
     summary: string,
@@ -302,6 +327,7 @@ function toDoc(row: {
   createdAt: number;
   updatedAt: number;
   audioUri?: string | null;
+  replyMd?: string | null;
 }): VaultDocument {
   return {
     ulid: row.ulid,
@@ -312,5 +338,6 @@ function toDoc(row: {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     audioUri: row.audioUri ?? null,
+    replyMd: row.replyMd ?? null,
   };
 }

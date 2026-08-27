@@ -102,6 +102,12 @@ END;
     // The verbatim promise's second half: raw audio kept beside the words.
     sql: `ALTER TABLE documents ADD COLUMN audio_uri TEXT;`,
   },
+  {
+    version: 3,
+    // The assistant's reply lives BESIDE the entry, never inside the
+    // user's verbatim body. Citations ride the links table (kind 'reply').
+    sql: `ALTER TABLE documents ADD COLUMN reply_md TEXT;`,
+  },
 ];
 
 /** Applies pending migrations. Safe to call on every app start. */

@@ -1,5 +1,5 @@
 import { ulid } from "ulidx";
-import type { DocumentType, LedgerKind, VaultDocument } from "./index";
+import type { DocumentType, LedgerKind, LinkKind, VaultDocument } from "./index";
 import type { LedgerEntry, SearchHit, ShelfSummary, VaultApi } from "./vault";
 import { extractWikilinks } from "./wikilinks";
 
@@ -19,6 +19,8 @@ export class MemoryVault implements VaultApi {
   private docs = new Map<string, VaultDocument>();
   private ledgerRows: LedgerEntry[] = [];
   private nextLedgerId = 1;
+  /** fromUlid → kind → target titles. */
+  private linkRows = new Map<string, Map<string, string[]>>();
 
   async createDocument(input: {
     type: DocumentType;
@@ -122,6 +124,19 @@ export class MemoryVault implements VaultApi {
       if (hits.length >= limit) break;
     }
     return hits;
+  }
+
+  async attachReply(docUlid: string, replyMd: string, sourceTitles: string[]): Promise<void> {
+    const doc = this.docs.get(docUlid);
+    if (!doc) throw new Error(`No document ${docUlid}`);
+    this.docs.set(docUlid, { ...doc, replyMd });
+    const byKind = this.linkRows.get(docUlid) ?? new Map<string, string[]>();
+    byKind.set("reply", [...new Set(sourceTitles)].sort());
+    this.linkRows.set(docUlid, byKind);
+  }
+
+  async getLinkTargets(docUlid: string, kind: LinkKind): Promise<string[]> {
+    return this.linkRows.get(docUlid)?.get(kind) ?? [];
   }
 
   async appendLedger(

@@ -7,6 +7,7 @@ import { Screen } from "../../components/Screen";
 import { TalkCircle } from "../../components/TalkCircle";
 import { TopRow } from "../../components/TopRow";
 import { Waveform } from "../../components/Waveform";
+import { useReply } from "../../assistant/useReply";
 import { useSpeechCapture } from "../../capture/useSpeechCapture";
 import { fonts, space } from "../../theme/tokens";
 import { useTheme } from "../../theme/ThemeProvider";
@@ -36,6 +37,7 @@ export default function LampScreen() {
   const { theme } = useTheme();
   const vault = useVault();
   const { supported, state, start, stop } = useSpeechCapture();
+  const { state: reply, run: runReply, reset: resetReply } = useReply(vault);
   const [typed, setTyped] = useState<string | null>(null); // null = not typing
   const [kept, setKept] = useState<VaultDocument | null>(null);
   const [saving, setSaving] = useState(false);
@@ -55,6 +57,8 @@ export default function LampScreen() {
       });
       setKept(doc);
       setTyped(null);
+      // The entry is safe. Now the friend who has read everything replies.
+      void runReply(doc);
     } finally {
       setSaving(false);
     }
@@ -62,6 +66,7 @@ export default function LampScreen() {
 
   const onCirclePress = () => {
     setKept(null);
+    resetReply();
     if (!supported) {
       // Voice needs the build that carries the speech module — typing works now.
       setTyped((t) => t ?? "");
@@ -151,15 +156,53 @@ export default function LampScreen() {
         ) : null}
 
         {kept ? (
-          <Pressable onPress={() => router.push(`/page/${kept.ulid}`)} style={styles.keptWrap}>
-            <Card label="Kept exactly">
-              <Text style={[styles.keptTitle, { color: theme.ink }]}>{kept.title}</Text>
-              <Text style={[styles.keptSub, { color: theme.inkSoft }]}>
-                Word for word{kept.audioUri ? ", audio beside it" : ""}. Written in the Ledger. Tap
-                to read.
-              </Text>
-            </Card>
-          </Pressable>
+          <ScrollView
+            style={styles.keptScroll}
+            contentContainerStyle={{ gap: space.s }}
+            showsVerticalScrollIndicator={false}
+          >
+            <Pressable onPress={() => router.push(`/page/${kept.ulid}`)}>
+              <Card label="Kept exactly">
+                <Text style={[styles.keptTitle, { color: theme.ink }]}>{kept.title}</Text>
+                <Text style={[styles.keptSub, { color: theme.inkSoft }]}>
+                  Word for word{kept.audioUri ? ", audio beside it" : ""}. Written in the Ledger.
+                  Tap to read.
+                </Text>
+              </Card>
+            </Pressable>
+
+            {reply.status === "thinking" ? (
+              <Card label="Wovera is reading your story so far">
+                <Text style={[styles.keptSub, { color: theme.inkSoft }]}>…</Text>
+              </Card>
+            ) : null}
+            {reply.status === "streaming" || reply.status === "done" ? (
+              <Card label="Wovera replies">
+                <Text style={[styles.replyText, { color: theme.ink }]}>{reply.text}</Text>
+                {reply.sources.length > 0 ? (
+                  <View style={styles.chipRow}>
+                    {reply.sources.map((s) => (
+                      <Pressable
+                        key={s.ulid}
+                        onPress={() => router.push(`/page/${s.ulid}`)}
+                        style={[
+                          styles.chip,
+                          { borderColor: theme.line, backgroundColor: theme.surface2 },
+                        ]}
+                      >
+                        <Text style={[styles.chipText, { color: theme.accentDeep }]}>
+                          {s.title}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+              </Card>
+            ) : null}
+            {reply.status === "error" && reply.error ? (
+              <Text style={[styles.error, { color: theme.inkSoft }]}>{reply.error}</Text>
+            ) : null}
+          </ScrollView>
         ) : null}
 
         {state.error ? (
@@ -200,9 +243,13 @@ const styles = StyleSheet.create({
   },
   quietAction: { fontFamily: fonts.uiMedium, fontSize: 14, padding: space.s },
   keepAction: { fontFamily: fonts.uiBold, fontSize: 14, padding: space.s },
-  keptWrap: { alignSelf: "stretch" },
+  keptScroll: { alignSelf: "stretch", maxHeight: 380 },
   keptTitle: { fontFamily: fonts.bodyMedium, fontSize: 16 },
   keptSub: { fontFamily: fonts.ui, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  replyText: { fontFamily: fonts.body, fontSize: 16, lineHeight: 25 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: space.s },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  chipText: { fontFamily: fonts.uiMedium, fontSize: 12 },
   error: { fontFamily: fonts.ui, fontSize: 13, textAlign: "center" },
   typeInstead: {
     fontFamily: fonts.uiMedium,

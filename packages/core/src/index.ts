@@ -35,6 +35,8 @@ export interface VaultDocument {
   updatedAt: number;
   /** Raw dictation audio file, when the entry was spoken. */
   audioUri?: string | null;
+  /** The assistant's reply — beside the entry, never inside the verbatim body. */
+  replyMd?: string | null;
 }
 
 export const CORE_VERSION = "0.0.1";
@@ -48,3 +50,6 @@ export { SqliteVault, toFtsQuery } from "./vault";
 export type { LedgerEntry, SearchHit, ShelfSummary, VaultApi, VaultDb } from "./vault";
 export { MemoryVault } from "./memoryVault";
 export { extractWikilinks } from "./wikilinks";
+export { buildReplyContext, significantTerms } from "./assistant/context";
+export type { ReplyContext } from "./assistant/context";
+export { GENTLE_SYSTEM_PROMPT, TITLE_SYSTEM_PROMPT } from "./assistant/prompts";
