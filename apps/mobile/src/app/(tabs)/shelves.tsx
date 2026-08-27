@@ -182,8 +182,8 @@ export default function ShelvesScreen() {
 
             {shelves.length === 0 ? (
               <Text style={[styles.empty, { color: theme.inkSoft }]}>
-                The shelves are built as you live. Pages grow here from what you put down — each one
-                showing where it came from.
+                The shelves are built as you live. Pages grow here from what you tell the lamp —
+                each one showing where it came from.
               </Text>
             ) : (
               shelves.map((shelf) => (

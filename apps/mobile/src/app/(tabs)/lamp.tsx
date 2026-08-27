@@ -1,4 +1,4 @@
-import { parseRouteResult } from "@wovera/core";
+import { isFirstEvening, parseRouteResult } from "@wovera/core";
 import type { VaultDocument } from "@wovera/core";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +23,7 @@ import { routeCapture } from "../../assistant/gemini";
 import { AskPanel } from "../../components/AskPanel";
 import { Card } from "../../components/Card";
 import { Letter } from "../../components/Letter";
+import { MarkdownBody } from "../../components/MarkdownBody";
 import { Screen } from "../../components/Screen";
 import { TalkCircle } from "../../components/TalkCircle";
 import { TopRow } from "../../components/TopRow";
@@ -135,6 +136,8 @@ export default function LampScreen() {
   } | null>(null);
   const [askText, setAskText] = useState<string | null>(null);
   const [askSettled, setAskSettled] = useState(false);
+  // The first evening — derived from an empty journal, never a stored flag.
+  const [firstEvening, setFirstEvening] = useState(false);
   const pendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const transcriptRef = useRef<ScrollView>(null);
 
@@ -148,6 +151,17 @@ export default function LampScreen() {
     const id = requestAnimationFrame(() => setPhase(phase));
     return () => cancelAnimationFrame(id);
   }, [setPhase, phase]);
+
+  useEffect(() => {
+    if (!vault) return;
+    let cancelled = false;
+    void isFirstEvening(vault).then((first) => {
+      if (!cancelled) setFirstEvening(first);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [vault, kept]);
 
   // The mic level rides a shared value — the flame reads it on the UI thread.
   useEffect(() => {
@@ -290,11 +304,15 @@ export default function LampScreen() {
         }}
       >
         <TopRow />
-        <Text style={[styles.greet, { color: theme.ink }]}>{GREETING}</Text>
+        <Text style={[styles.greet, { color: theme.ink }]}>
+          {firstEvening ? "The lamp is lit for the first time." : GREETING}
+        </Text>
         <Text style={[styles.sub, { color: theme.inkSoft }]}>
           {listening
             ? "Listening. Take all the time you need."
-            : "Talk whenever you're ready. Or type, if the house is quiet."}
+            : firstEvening
+              ? "Tell me anything — how today went is enough."
+              : "Talk whenever you're ready. Or type, if the house is quiet."}
         </Text>
       </Animated.View>
 
@@ -468,7 +486,14 @@ export default function LampScreen() {
             {reply.status !== "idle" && reply.status !== "error" ? (
               <Letter label={reply.text ? "Wovera replies" : "reading your story so far…"}>
                 {reply.text ? (
-                  <Text style={[styles.replyText, { color: theme.ink }]}>{reply.text}</Text>
+                  <MarkdownBody
+                    bodyMd={reply.text}
+                    onWikilink={(title) => {
+                      void vault?.getDocumentByTitle(title).then((target) => {
+                        if (target) router.push(`/page/${target.ulid}`);
+                      });
+                    }}
+                  />
                 ) : null}
                 {reply.text && reply.sources.length > 0 ? (
                   <View style={styles.chipRow}>
@@ -580,7 +605,9 @@ export default function LampScreen() {
           }}
         >
           <Text style={[styles.promise, { color: theme.inkFaint }]}>
-            Your words are kept exactly. Nothing is cleaned up unless you ask.
+            {firstEvening
+              ? "Your words are kept exactly — encrypted on this phone before they ever leave it."
+              : "Your words are kept exactly. Nothing is cleaned up unless you ask."}
           </Text>
         </Animated.View>
       )}
@@ -640,7 +667,6 @@ const styles = StyleSheet.create({
   },
   quietAction: { fontFamily: fonts.uiMedium, fontSize: 14, padding: space.s },
   keptScroll: { alignSelf: "stretch", maxHeight: 420 },
-  replyText: { fontFamily: fonts.body, fontSize: 16, lineHeight: 25 },
   heldPanel: { borderRadius: 12, paddingVertical: 14, paddingHorizontal: 15 },
   heldLabel: { fontFamily: fonts.uiBold, fontSize: 11, letterSpacing: 1.2, marginBottom: 6 },
   heldRow: { paddingVertical: 4 },

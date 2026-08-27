@@ -55,6 +55,14 @@ export { newUlid } from "./ids";
 export { extractWikilinks } from "./wikilinks";
 export { parsePccEntry } from "./reading";
 export type { PccEntry, PccTurn } from "./reading";
+export {
+  ensureWelcomeLetter,
+  isFirstEvening,
+  FIRST_EVENING_REPLY_NOTE,
+  FIRST_EVENING_WRITEBACK_NOTE,
+  WELCOME_SHELF,
+  WELCOME_TITLE,
+} from "./welcome";
 export { buildReplyContext, significantTerms } from "./assistant/context";
 export type { ReplyContext } from "./assistant/context";
 export {
