@@ -97,6 +97,11 @@ CREATE TRIGGER IF NOT EXISTS documents_fts_au AFTER UPDATE ON documents BEGIN
 END;
 `,
   },
+  {
+    version: 2,
+    // The verbatim promise's second half: raw audio kept beside the words.
+    sql: `ALTER TABLE documents ADD COLUMN audio_uri TEXT;`,
+  },
 ];
 
 /** Applies pending migrations. Safe to call on every app start. */

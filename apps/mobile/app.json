@@ -36,7 +36,15 @@
         }
       ],
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Wovera uses the microphone so you can speak your entries. Audio is processed on this device.",
+          "speechRecognitionPermission": "Wovera turns your speech into text on this device. Your words are kept exactly.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -17,6 +17,8 @@ export const documents = sqliteTable("documents", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
   hlc: text("hlc").notNull(),
+  /** Raw dictation audio file, when the entry was spoken. */
+  audioUri: text("audio_uri"),
 });
 
 export const links = sqliteTable(

@@ -14,23 +14,32 @@ const CORE = 148;
  * iOS, and web. Breathing is a Reanimated CSS animation: zero JS-thread cost,
  * and a still, warm glow when the OS asks for reduced motion.
  */
-export function TalkCircle({ onPress }: { onPress?: () => void }) {
+export function TalkCircle({
+  onPress,
+  label = "TAP AND TALK",
+  listening = false,
+}: {
+  onPress?: () => void;
+  label?: string;
+  listening?: boolean;
+}) {
   const { name } = useTheme();
   const reducedMotion = useReducedMotion();
-  const haloOpacity = name === "dusk" ? 0.5 : 0.35;
+  const haloOpacity = (name === "dusk" ? 0.5 : 0.35) * (listening ? 1.25 : 1);
 
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Tap and talk">
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label}>
       <Animated.View
         style={[
           styles.wrap,
           !reducedMotion && {
             animationName: {
               "0%": { transform: [{ scale: 1 }], opacity: 1 },
-              "50%": { transform: [{ scale: 1.035 }], opacity: 0.92 },
+              "50%": { transform: [{ scale: listening ? 1.06 : 1.035 }], opacity: 0.92 },
               "100%": { transform: [{ scale: 1 }], opacity: 1 },
             },
-            animationDuration: "4.5s",
+            // Listening breathes a little faster — attentive, not anxious.
+            animationDuration: listening ? "2.6s" : "4.5s",
             animationIterationCount: "infinite",
             animationTimingFunction: "ease-in-out",
           },
@@ -54,7 +63,7 @@ export function TalkCircle({ onPress }: { onPress?: () => void }) {
           <Circle cx={HALO / 2} cy={HALO / 2} r={CORE / 2} fill="url(#core)" />
         </Svg>
         <View style={styles.labelWrap} pointerEvents="none">
-          <Text style={styles.label}>TAP AND TALK</Text>
+          <Text style={styles.label}>{label}</Text>
         </View>
       </Animated.View>
     </Pressable>

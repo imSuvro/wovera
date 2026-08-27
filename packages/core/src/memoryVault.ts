@@ -26,6 +26,7 @@ export class MemoryVault implements VaultApi {
     bodyMd: string;
     shelf?: string | null;
     createdAt?: number;
+    audioUri?: string | null;
     ledger?: { kind: LedgerKind; summary: string };
   }): Promise<VaultDocument> {
     const now = input.createdAt ?? Date.now();
@@ -37,6 +38,7 @@ export class MemoryVault implements VaultApi {
       shelf: input.shelf ?? null,
       createdAt: now,
       updatedAt: now,
+      audioUri: input.audioUri ?? null,
     };
     this.docs.set(doc.ulid, doc);
     const entry = input.ledger ?? { kind: DEFAULT_LEDGER[input.type], summary: input.title };

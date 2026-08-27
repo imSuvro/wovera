@@ -33,6 +33,8 @@ export interface VaultDocument {
   shelf: string | null;
   createdAt: number;
   updatedAt: number;
+  /** Raw dictation audio file, when the entry was spoken. */
+  audioUri?: string | null;
 }
 
 export const CORE_VERSION = "0.0.1";
