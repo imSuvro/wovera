@@ -56,6 +56,16 @@ function chunkText(chunk: StreamChunk): string {
   return chunk.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
 }
 
+/** Busy, not broken: worth asking a quieter model rather than going silent. */
+function isBusy(status: number): boolean {
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+/**
+ * The reply, streamed. When the main model is overloaded the house does not
+ * go quiet: it asks the lighter model, and failing that takes the answer in
+ * one piece from the spare lamp. A reply always arrives if one can be had.
+ */
 export async function streamReply(
   userPrompt: string,
   onDelta: (soFar: string) => void,
@@ -65,18 +75,46 @@ export async function streamReply(
 ): Promise<string> {
   const key = geminiKey();
   if (!key) throw new Error("no-key");
-  const res = await expoFetch(`${BASE}/${REPLY_MODEL}:streamGenerateContent?alt=sse&key=${key}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    signal,
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt + systemSuffix }] },
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
-      safetySettings: SAFETY_SETTINGS,
-    }),
+  const system = systemPrompt + systemSuffix;
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    generationConfig: { temperature: 0.7, maxOutputTokens: 2048 },
+    safetySettings: SAFETY_SETTINGS,
   });
-  if (!res.ok) throw new Error(`gemini-${res.status}`);
+
+  let res: Awaited<ReturnType<typeof expoFetch>> | null = null;
+  for (const model of [REPLY_MODEL, TITLE_MODEL]) {
+    const attempt = await expoFetch(`${BASE}/${model}:streamGenerateContent?alt=sse&key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal,
+      body,
+    });
+    if (attempt.ok && attempt.body) {
+      res = attempt;
+      break;
+    }
+    if (!isBusy(attempt.status)) throw new Error(`gemini-${attempt.status}`);
+    if (__DEV__) console.warn(`${model} is busy (${attempt.status}) — trying the next lamp`);
+  }
+
+  if (!res) {
+    // Both streams are busy. Take the whole answer at once rather than none.
+    const whole = await quietCall(
+      FALLBACK_MODEL,
+      system,
+      userPrompt,
+      {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+      },
+      key,
+    );
+    if (!whole) throw new Error("gemini-busy");
+    onDelta(whole);
+    return whole.trim();
+  }
   if (!res.body) throw new Error("gemini-no-stream");
 
   const reader = res.body.getReader();
