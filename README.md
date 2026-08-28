@@ -85,7 +85,7 @@ The experience ships in chapters — the design was written as a story before an
 - [ ] Semantic recall with on-device embeddings
 - [ ] Android release → web → iOS
 
-Known limits today: the web build runs the full interface but falls back to an in-memory vault when the browser's OPFS-backed SQLite is unavailable, so web persistence is not yet guaranteed; iOS is unbuilt.
+Known limits today: the web build runs the full interface and keeps your vault in the browser between visits, but it does so through IndexedDB rather than the OPFS-backed SQLite engine the phone uses — full-text search on web is a simpler substring match until that engine graduates from alpha. iOS is unbuilt.
 
 ## Developing
 
