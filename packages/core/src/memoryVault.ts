@@ -10,6 +10,16 @@ const DEFAULT_LEDGER: Record<DocumentType, LedgerKind> = {
   thread: "held",
 };
 
+/** A whole in-memory vault as plain, JSON-safe data. */
+export interface MemoryVaultState {
+  version: 1;
+  docs: VaultDocument[];
+  ledger: LedgerEntry[];
+  nextLedgerId: number;
+  links: { from: string; kinds: { kind: string; titles: string[] }[] }[];
+  settings: { key: string; value: string }[];
+}
+
 /**
  * In-memory VaultApi. Two jobs: the web build's fallback until
  * sqlite-on-web graduates from alpha (Phase 7), and instant test doubles.
@@ -186,6 +196,37 @@ export class MemoryVault implements VaultApi {
   async markOpsPushed(): Promise<void> {}
 
   private remoteHlc = new Map<string, string>();
+
+  /**
+   * The whole vault as plain data — so a host without durable SQLite (the
+   * web build today) can keep it somewhere real between visits. Structured
+   * cloneable and JSON-safe: no Maps, no class instances.
+   */
+  snapshot(): MemoryVaultState {
+    return {
+      version: 1,
+      docs: [...this.docs.values()],
+      ledger: this.ledgerRows,
+      nextLedgerId: this.nextLedgerId,
+      links: [...this.linkRows].map(([from, kinds]) => ({
+        from,
+        kinds: [...kinds].map(([kind, titles]) => ({ kind, titles })),
+      })),
+      settings: [...this.settings].map(([key, value]) => ({ key, value })),
+    };
+  }
+
+  /** Rehydrates a vault from `snapshot()`. Unknown versions are ignored. */
+  restore(state: MemoryVaultState): void {
+    if (!state || state.version !== 1) return;
+    this.docs = new Map(state.docs.map((d) => [d.ulid, d]));
+    this.ledgerRows = [...state.ledger];
+    this.nextLedgerId = state.nextLedgerId;
+    this.linkRows = new Map(
+      state.links.map(({ from, kinds }) => [from, new Map(kinds.map((k) => [k.kind, k.titles]))]),
+    );
+    this.settings = new Map(state.settings.map((s) => [s.key, s.value]));
+  }
 
   async applyRemoteDocument(doc: VaultDocument, hlc: string): Promise<boolean> {
     const known = this.remoteHlc.get(doc.ulid);

@@ -1,5 +1,6 @@
 import { MemoryVault } from "@wovera/core";
-import type { LedgerKind, VaultApi } from "@wovera/core";
+import type { LedgerKind, MemoryVaultState, VaultApi } from "@wovera/core";
+import { loadWebVault, persistWebVault } from "./webPersistence";
 
 interface Snapshot {
   documents: {
@@ -42,24 +43,73 @@ export function openVault(): Promise<VaultApi> {
 
 async function openMemoryVault(): Promise<VaultApi> {
   const vault = new MemoryVault();
+
+  // What this browser already holds wins: a returning visitor picks up
+  // exactly where they left off, even without durable SQLite.
+  const kept = await loadWebVault();
+  if (kept) {
+    vault.restore(kept);
+    return watched(vault);
+  }
+
   const snapshot = await loadLocalSnapshot();
   // No snapshot, no examples — a fresh vault starts empty but for the
   // house's welcome letter, which VaultProvider leaves (Plate VIII).
-  if (!snapshot) return vault;
-  for (const row of snapshot.ledger) {
-    await vault.appendLedger(row.kind, row.summary, undefined, row.ts);
+  if (snapshot) {
+    for (const row of snapshot.ledger) {
+      await vault.appendLedger(row.kind, row.summary, undefined, row.ts);
+    }
+    for (const doc of snapshot.documents) {
+      await vault.createDocument({
+        type: doc.type,
+        title: doc.title,
+        bodyMd: doc.bodyMd,
+        shelf: doc.shelf,
+        createdAt: doc.createdAt,
+        ledger: { kind: "woven", summary: `Imported: ${doc.title}` },
+      });
+    }
   }
-  for (const doc of snapshot.documents) {
-    await vault.createDocument({
-      type: doc.type,
-      title: doc.title,
-      bodyMd: doc.bodyMd,
-      shelf: doc.shelf,
-      createdAt: doc.createdAt,
-      ledger: { kind: "woven", summary: `Imported: ${doc.title}` },
-    });
-  }
-  return vault;
+  return watched(vault);
+}
+
+/**
+ * Every write lands in the browser's own storage a beat later, so a reload
+ * — or a closed tab — never costs the keeper their words. The vault stays
+ * the plain in-memory one; only its state is mirrored.
+ */
+function watched(vault: MemoryVault): VaultApi {
+  let pending: ReturnType<typeof setTimeout> | null = null;
+  const save = () => {
+    if (pending) clearTimeout(pending);
+    pending = setTimeout(() => {
+      pending = null;
+      void persistWebVault(vault.snapshot() as MemoryVaultState);
+    }, 250);
+  };
+  const WRITES = new Set([
+    "createDocument",
+    "updateDocument",
+    "attachReply",
+    "appendLedger",
+    "setSetting",
+    "markOpsPushed",
+    "applyRemoteDocument",
+  ]);
+  return new Proxy(vault, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver) as unknown;
+      if (typeof value !== "function" || typeof prop !== "string") return value;
+      const fn = value as (...args: unknown[]) => unknown;
+      if (!WRITES.has(prop)) return fn.bind(target);
+      return (...args: unknown[]) => {
+        const result = fn.apply(target, args);
+        if (result instanceof Promise) return result.then((r) => (save(), r));
+        save();
+        return result;
+      };
+    },
+  }) as unknown as VaultApi;
 }
 
 async function loadLocalSnapshot(): Promise<Snapshot | null> {
