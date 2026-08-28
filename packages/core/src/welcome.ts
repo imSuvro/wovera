@@ -58,7 +58,7 @@ This is the keeper's FIRST entry — the vault was empty until now. Do not
 imply you remember anything about them, and do not cite pages beyond the
 house's own welcome letter. Welcome them warmly and briefly, reflect what
 they actually said, and end by naming one concrete thing you are keeping
-for them. Do not explain the app's features.`;
+for them. Do not explain what the house can do.`;
 
 /**
  * Appended to the writeback prompt on the first entry: an empty vault has
@@ -69,8 +69,8 @@ export const FIRST_EVENING_WRITEBACK_NOTE = `
 
 This is the keeper's FIRST entry and their shelves are empty. Propose one
 or two starter pages for the most durable things they said (a person, a
-place, a rule, an intention, a thread of their life) so their library
-begins. Titles must be nouns a person would look for later. Give each new
+place, a rule, an intention, a thread of their life) so their shelves
+begin. Titles must be nouns a person would look for later. Give each new
 page a shelf named for its subject — never "The House", which belongs to
 the house's own letter. If they truly said nothing durable, propose
 nothing.`;

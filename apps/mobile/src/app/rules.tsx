@@ -38,7 +38,7 @@ export default function RulesScreen() {
     setTone(next);
     if (vault) {
       void vault.setSetting("voice_tone", next);
-      void vault.appendLedger("rule", `How Wovera speaks — set to ${next}`);
+      void vault.appendLedger("rule", `How Wovera speaks — now ${next}`);
     }
   };
 
@@ -59,7 +59,7 @@ export default function RulesScreen() {
             "Your words are kept verbatim",
             "Sources are never edited",
             "The Ledger is append-only",
-            "Every AI action is visible and undoable",
+            "Everything Wovera does is visible and undoable",
           ].map((rule) => (
             <View key={rule} style={[styles.lockRow, { borderBottomColor: theme.line }]}>
               <Text style={[styles.lockText, { color: theme.inkSoft }]}>{rule}</Text>
@@ -99,7 +99,7 @@ export default function RulesScreen() {
           </Text>
         </Card>
 
-        <Card label="Theme" index={2}>
+        <Card label="The light in the house" index={2}>
           <View style={styles.choiceRow}>
             {THEME_CHOICES.map((c) => (
               <Tappable key={c.mode} onPress={() => chooseTheme(c.mode)}>
@@ -129,7 +129,7 @@ export default function RulesScreen() {
 
         <Card label="Rule changes are remembered" index={3}>
           <Text style={[styles.hint, { color: theme.inkSoft }]}>
-            Every change on this screen is written in the Ledger — the house remembers how you asked
+            Every change you make here is written in the Ledger — the house remembers how you asked
             it to behave.
           </Text>
         </Card>

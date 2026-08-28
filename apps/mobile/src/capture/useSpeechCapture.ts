@@ -113,7 +113,7 @@ export function useSpeechCapture() {
             status: "idle",
             volume: 0,
             error:
-              "Downloading the on-device voice for English (India) — give it a minute, then tap again.",
+              "Your phone is still fetching the offline voice for English (India) — give it a minute, then tap the lamp again. Write it down in the meantime if you'd rather.",
           }));
           return;
         }
@@ -121,7 +121,9 @@ export function useSpeechCapture() {
           ...s,
           status: "idle",
           volume: 0,
-          error: event.message ?? event.error ?? "speech failed",
+          // The recognizer's own words never reach the room.
+          error:
+            "The lamp stopped hearing for a moment — anything already said is safe. Tap to go on.",
         }));
       }),
     ];
@@ -146,7 +148,11 @@ export function useSpeechCapture() {
     if (!speech) return;
     const { granted } = await speech.requestPermissionsAsync();
     if (!granted) {
-      setState((s) => ({ ...s, error: "Microphone permission is needed to talk." }));
+      setState((s) => ({
+        ...s,
+        error:
+          "The lamp can't hear yet — this phone hasn't let it use the mic. Allow it and tap the lamp again, or write it down instead.",
+      }));
       return;
     }
     wantListening.current = true;

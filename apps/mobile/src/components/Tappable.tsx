@@ -34,7 +34,6 @@ export function Tappable({
   const reduced = useReducedMotion();
   const animated = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - pressed.get() * 0.02 }],
-    opacity: 1 - pressed.get() * 0.08,
   }));
   return (
     <Pressable

@@ -6,7 +6,6 @@ import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import Animated, {
   FadeIn,
   FadeInDown,
-  FadeOut,
   Keyframe,
   useReducedMotion,
   useSharedValue,
@@ -65,12 +64,23 @@ function greetingForNow(now = new Date()): string {
 }
 const GREETING = greetingForNow();
 
-/** The seal's arrival: contract-and-settle with one soft overshoot, 400ms. */
+/**
+ * The seal: one mark contracting, not two things swapping. The room's lamp
+ * shrinks away as the 34pt seal arrives already large and settles down to
+ * itself — 400ms with a single soft undershoot (Pattern Book, Act III).
+ */
 const sealEnter = new Keyframe({
-  0: { transform: [{ scale: 0.62 }], opacity: 0 },
-  70: { transform: [{ scale: 1.05 }], opacity: 1 },
+  0: { transform: [{ scale: 2.6 }], opacity: 0 },
+  25: { transform: [{ scale: 1.8 }], opacity: 1 },
+  70: { transform: [{ scale: 0.96 }], opacity: 1 },
   100: { transform: [{ scale: 1 }], opacity: 1 },
 }).duration(400);
+
+/** The room's lamp contracting away as the seal takes its place. */
+const lampSeal = new Keyframe({
+  0: { transform: [{ scale: 1 }], opacity: 1 },
+  100: { transform: [{ scale: 0.35 }], opacity: 0 },
+}).duration(320);
 
 /** A small lamp — the seal beside "Kept, exactly." and the docked send action. */
 function MiniLamp({ size, breathing = false }: { size: number; breathing?: boolean }) {
@@ -82,11 +92,11 @@ function MiniLamp({ size, breathing = false }: { size: number; breathing?: boole
           !reducedMotion && {
             // Thinking is the seal breathing — never dots in a box.
             animationName: {
-              "0%": { transform: [{ scale: 1 }], opacity: 1 },
-              "50%": { transform: [{ scale: 1.08 }], opacity: 0.88 },
-              "100%": { transform: [{ scale: 1 }], opacity: 1 },
+              "0%": { transform: [{ scale: 1 }] },
+              "50%": { transform: [{ scale: 1.035 }] },
+              "100%": { transform: [{ scale: 1 }] },
             },
-            animationDuration: "2.6s",
+            animationDuration: "4.5s",
             animationIterationCount: "infinite",
             animationTimingFunction: "ease-in-out",
           },
@@ -345,7 +355,7 @@ export default function LampScreen() {
       ) : null}
 
       {pending ? (
-        <Animated.View entering={FadeIn.duration(200)} style={styles.pendingRow}>
+        <Animated.View entering={FadeInDown.duration(360)} style={styles.pendingRow}>
           <Pressable onPress={flipPending} hitSlop={10} accessibilityRole="button">
             <View style={[styles.pendingChip, { borderColor: theme.line }]}>
               <Text style={[styles.pendingText, { color: theme.accentDeep }]}>
@@ -367,12 +377,12 @@ export default function LampScreen() {
           </ScrollView>
         ) : null}
         {typed === null && !kept && !askText ? (
-          <Animated.View exiting={FadeOut.duration(250)} style={styles.lampWrap}>
+          <Animated.View exiting={lampSeal} style={styles.lampWrap}>
             <TalkCircle
               onPress={onCirclePress}
               listening={listening}
               volume={micVolume}
-              label={listening ? "TAP TO FINISH" : "TAP AND TALK"}
+              label={listening ? "I'M LISTENING" : "TALK TO ME"}
             />
             {listening ? (
               <View style={styles.waveRow}>

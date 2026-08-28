@@ -3,7 +3,7 @@ import type { LedgerEntry, VaultDocument } from "@wovera/core";
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import { QuickCapture } from "../../components/QuickCapture";
 import { Screen } from "../../components/Screen";
 import { Tappable } from "../../components/Tappable";
@@ -254,7 +254,7 @@ export default function TodayScreen() {
           )}
         </Text>
         {away && awayOpen ? (
-          <Animated.View entering={FadeIn.duration(220)} style={styles.awayList}>
+          <Animated.View entering={FadeInDown.duration(360)} style={styles.awayList}>
             {away.slice(0, 12).map((row) => (
               <Pressable
                 key={row.id}
@@ -278,7 +278,7 @@ export default function TodayScreen() {
 
         <Text style={[styles.eyebrow, { color: theme.inkFaint }]}>THREADS BEING HELD</Text>
         {filedChip ? (
-          <Animated.View entering={FadeIn.duration(220)} exiting={FadeOut.duration(400)}>
+          <Animated.View entering={FadeInDown.duration(360)} exiting={FadeOut.duration(360)}>
             <Text style={[styles.filedChip, { color: theme.held }]}>{filedChip}</Text>
           </Animated.View>
         ) : null}
