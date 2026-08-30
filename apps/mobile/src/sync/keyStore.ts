@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { deriveVaultKey, entropyToHex, hexToEntropy } from "@wovera/core";
+import { deriveVaultKey, entropyToHex, entropyToMnemonic, hexToEntropy } from "@wovera/core";
 
 /**
  * Where the root entropy lives on this device.
@@ -83,4 +83,22 @@ export async function saveRootEntropy(entropy: Uint8Array): Promise<void> {
 
 export async function hasRootEntropy(): Promise<boolean> {
   return (await store.get()) !== null;
+}
+
+/**
+ * The twelve words again, from the entropy this device already holds.
+ *
+ * They are shown once at the ceremony — but a phrase glimpsed and not
+ * written down is a vault with one key and no spare. Anyone already
+ * inside this signed-in device can ask for them back; the words never
+ * leave it, and nothing new is created by asking.
+ */
+export async function recoverMnemonic(): Promise<string | null> {
+  const hex = await store.get();
+  if (!hex) return null;
+  try {
+    return entropyToMnemonic(hexToEntropy(hex));
+  } catch {
+    return null;
+  }
 }

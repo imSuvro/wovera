@@ -1,5 +1,6 @@
 import { createRecovery, deriveVaultKey, mnemonicToRootEntropy, runSync } from "@wovera/core";
 import type { SyncResult } from "@wovera/core";
+import type { User } from "@supabase/supabase-js";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -23,9 +24,20 @@ import { useVault } from "../vault/VaultProvider";
  */
 export type SyncStatus = "off" | "loading" | "signedOut" | "showPhrase" | "needsPhrase" | "ready";
 
+/** Who is signed in, as the house would introduce them. */
+export interface Account {
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  /** "google", "email" — how they came in. */
+  provider: string | null;
+  since: number | null;
+}
+
 interface SyncContextValue {
   status: SyncStatus;
   email: string | null;
+  account: Account | null;
   mnemonic: string | null;
   error: string | null;
   lastSync: SyncResult | null;
@@ -68,10 +80,25 @@ function houseVoice(raw: string): string {
   return "That didn't open the door. Try again in a moment — nothing here has been lost.";
 }
 
+/** Pulls the human details out of a session, whichever door they used. */
+function readAccount(session: { user: User } | null): Account | null {
+  if (!session) return null;
+  const meta = (session.user.user_metadata ?? {}) as Record<string, unknown>;
+  const str = (key: string) => (typeof meta[key] === "string" ? (meta[key] as string) : null);
+  return {
+    email: session.user.email ?? null,
+    name: str("full_name") ?? str("name"),
+    avatarUrl: str("avatar_url") ?? str("picture"),
+    provider: session.user.app_metadata?.provider ?? null,
+    since: session.user.created_at ? Date.parse(session.user.created_at) : null,
+  };
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const vault = useVault();
   const [status, setStatus] = useState<SyncStatus>(authConfigured ? "loading" : "off");
   const [email, setEmail] = useState<string | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [mnemonic, setMnemonic] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<SyncResult | null>(null);
@@ -113,7 +140,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       keyRef.current = deriveVaultKey(entropy);
       setMnemonic(words);
       setStatus("showPhrase"); // shown once; confirm → ready + first upload
-    } catch {
+    } catch (err) {
+      // Silence here once cost an afternoon: the house looked signed in and
+      // carried nothing. Say it in the logs, and say it on screen.
+      if (__DEV__) console.warn("recovery key could not be created:", err);
       setError(
         "This build can't cut your twelve words yet. Everything you keep stays safe on this device until it can.",
       );
@@ -127,11 +157,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     void supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
       setEmail(data.session?.user.email ?? null);
+      setAccount(readAccount(data.session));
       if (data.session) void resolveKeyState();
       else setStatus("signedOut");
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setEmail(session?.user.email ?? null);
+      setAccount(readAccount(session));
       if (session) void resolveKeyState();
       else setStatus("signedOut");
     });
@@ -221,6 +253,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       value={{
         status,
         email,
+        account,
         mnemonic,
         error,
         lastSync,

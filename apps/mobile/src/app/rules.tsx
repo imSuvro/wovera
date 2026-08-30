@@ -1,9 +1,13 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Card } from "../components/Card";
+import { PersonMark } from "../components/PersonMark";
 import { Screen } from "../components/Screen";
 import { Tappable } from "../components/Tappable";
+import { shortDate } from "../lib/dates";
+import { recoverMnemonic } from "../sync/keyStore";
+import { useSync } from "../sync/SyncProvider";
 import { fonts, radius, space } from "../theme/tokens";
 import { useTheme } from "../theme/ThemeProvider";
 import type { ThemeMode } from "../theme/ThemeProvider";
@@ -25,7 +29,37 @@ const THEME_CHOICES: { mode: ThemeMode; label: string }[] = [
 export default function RulesScreen() {
   const { theme, mode, setMode } = useTheme();
   const vault = useVault();
+  const { account, status, lastSync, syncNow, signOut, error: syncError } = useSync();
   const [tone, setTone] = useState<Tone>("Gentle");
+  // Leaving is easy to do by accident, so the door asks once.
+  const [leaving, setLeaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  // The twelve words, fetched only when deliberately asked for.
+  const [words, setWords] = useState<string[] | null>(null);
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+    };
+  }, []);
+
+  const askToLeave = () => {
+    if (!leaving) {
+      setLeaving(true);
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
+      leaveTimer.current = setTimeout(() => setLeaving(false), 4000);
+      return;
+    }
+    setLeaving(false);
+    void signOut();
+  };
+
+  const syncLine =
+    status === "off"
+      ? "This house keeps everything on this phone alone."
+      : lastSync
+        ? `${lastSync.pushed} sent up · ${lastSync.pulled} brought down, last time`
+        : "Nothing carried yet — it happens quietly as you write.";
 
   useEffect(() => {
     if (!vault) return;
@@ -54,7 +88,105 @@ export default function RulesScreen() {
       </Tappable>
       <Text style={[styles.title, { color: theme.ink }]}>House Rules</Text>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        <Card label="The skeleton — how this house stands" index={0}>
+        {account ? (
+          <Card label="Whose house this is" index={0}>
+            <View style={styles.youRow}>
+              {account.avatarUrl ? (
+                <Image source={{ uri: account.avatarUrl }} style={styles.avatar} />
+              ) : (
+                <PersonMark name={account.name ?? account.email ?? "You"} size={44} />
+              )}
+              <View style={styles.youText}>
+                <Text style={[styles.youName, { color: theme.ink }]} numberOfLines={1}>
+                  {account.name ?? account.email ?? "You"}
+                </Text>
+                <Text style={[styles.youMeta, { color: theme.inkFaint }]} numberOfLines={1}>
+                  {account.name && account.email ? `${account.email} · ` : ""}
+                  {account.provider === "google" ? "came in with Google" : "came in by email"}
+                  {account.since ? ` · here since ${shortDate(account.since)}` : ""}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.hint, { color: theme.inkSoft }]}>{syncLine}</Text>
+            {syncError ? (
+              <Text style={[styles.hint, { color: theme.accentDeep }]}>{syncError}</Text>
+            ) : null}
+            <View style={styles.accountActions}>
+              <Tappable
+                onPress={() => {
+                  if (syncing) return;
+                  setSyncing(true);
+                  void syncNow().finally(() => setSyncing(false));
+                }}
+                hitSlop={8}
+              >
+                <Text
+                  style={[styles.action, { color: theme.accentDeep, opacity: syncing ? 0.45 : 1 }]}
+                >
+                  Carry it up now
+                </Text>
+              </Tappable>
+              <Tappable onPress={askToLeave} hitSlop={8}>
+                <Text
+                  style={[styles.action, { color: leaving ? theme.accentDeep : theme.inkFaint }]}
+                >
+                  {leaving ? "Tap again to leave" : "Leave this house"}
+                </Text>
+              </Tappable>
+            </View>
+            <Text style={[styles.hint, { color: theme.inkFaint }]}>
+              Leaving signs you out on this phone. Your words stay where they are, and your twelve
+              words bring them back.
+            </Text>
+          </Card>
+        ) : null}
+
+        {status !== "off" ? (
+          <Card label="The twelve words" index={1}>
+            {words ? (
+              <>
+                <View style={styles.wordGrid}>
+                  {words.map((word, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.word,
+                        { borderColor: theme.line, backgroundColor: theme.surface2 },
+                      ]}
+                    >
+                      <Text style={[styles.wordIndex, { color: theme.inkFaint }]}>{i + 1}</Text>
+                      <Text style={[styles.wordText, { color: theme.ink }]}>{word}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Tappable onPress={() => setWords(null)} hitSlop={8}>
+                  <Text style={[styles.action, { color: theme.inkFaint }]}>Put them away</Text>
+                </Tappable>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.hint, { color: theme.inkSoft, marginTop: 0 }]}>
+                  These twelve words are the only key to your vault on another device. Nobody can
+                  recover them for you — not us, not anyone. Write them on paper.
+                </Text>
+                <Tappable
+                  onPress={() => {
+                    void recoverMnemonic().then((phrase) => {
+                      if (phrase) setWords(phrase.split(" "));
+                    });
+                  }}
+                  hitSlop={8}
+                >
+                  <Text style={[styles.action, { color: theme.accentDeep }]}>
+                    Show me my twelve words
+                  </Text>
+                </Tappable>
+              </>
+            )}
+          </Card>
+        ) : null}
+
+        <Card label="The skeleton — how this house stands" index={2}>
           {[
             "Your words are kept verbatim",
             "Sources are never edited",
@@ -71,7 +203,7 @@ export default function RulesScreen() {
           </Text>
         </Card>
 
-        <Card label="How Wovera speaks" index={1}>
+        <Card label="How Wovera speaks" index={3}>
           <View style={styles.choiceRow}>
             {TONES.map((t) => (
               <Tappable key={t} onPress={() => chooseTone(t)}>
@@ -99,7 +231,7 @@ export default function RulesScreen() {
           </Text>
         </Card>
 
-        <Card label="The light in the house" index={2}>
+        <Card label="The light in the house" index={4}>
           <View style={styles.choiceRow}>
             {THEME_CHOICES.map((c) => (
               <Tappable key={c.mode} onPress={() => chooseTheme(c.mode)}>
@@ -127,7 +259,7 @@ export default function RulesScreen() {
           </Text>
         </Card>
 
-        <Card label="Rule changes are remembered" index={3}>
+        <Card label="Rule changes are remembered" index={5}>
           <Text style={[styles.hint, { color: theme.inkSoft }]}>
             Every change you make here is written in the Ledger — the house remembers how you asked
             it to behave.
@@ -161,4 +293,28 @@ const styles = StyleSheet.create({
   },
   choiceText: { fontFamily: fonts.uiMedium, fontSize: 13 },
   hint: { fontFamily: fonts.ui, fontSize: 12.5, lineHeight: 18, marginTop: 10 },
+  youRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22 },
+  youText: { flex: 1 },
+  youName: { fontFamily: fonts.bodyMedium, fontSize: 17 },
+  youMeta: { fontFamily: fonts.ui, fontSize: 11.5, marginTop: 2 },
+  accountActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: space.s,
+  },
+  action: { fontFamily: fonts.uiBold, fontSize: 13, paddingVertical: 6 },
+  wordGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  word: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  wordIndex: { fontFamily: fonts.ui, fontSize: 10 },
+  wordText: { fontFamily: fonts.bodyMedium, fontSize: 14 },
 });
