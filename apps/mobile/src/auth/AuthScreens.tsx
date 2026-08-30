@@ -15,79 +15,127 @@ import { useSync } from "../sync/SyncProvider";
 
 export function AuthGate() {
   const { theme } = useTheme();
-  const { signIn, signUp } = useSync();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const { continueWithGoogle, sendEmailCode, verifyEmailCode } = useSync();
+  /** waiting = the code is in their inbox, not yet typed. */
+  const [step, setStep] = useState<"choose" | "waiting">("choose");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
-  const submit = async () => {
-    if (busy || !email.trim() || password.length < 8) {
-      setError(
-        password.length < 8
-          ? "Your password needs eight characters or more — it guards the door."
-          : null,
-      );
-      return;
-    }
+  const run = async (work: () => Promise<string | null>, onDone?: () => void) => {
+    if (busy) return;
     setBusy(true);
-    setError(null);
-    const err =
-      mode === "in" ? await signIn(email.trim(), password) : await signUp(email.trim(), password);
-    if (err) setError(err);
+    setNote(null);
+    const said = await work();
+    if (said) setNote(said);
+    else onDone?.();
     setBusy(false);
   };
+
+  const emailLooksReal = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email.trim());
 
   return (
     <Screen>
       <View style={styles.hero}>
         <TalkCircle label="WOVERA" />
-        <Text style={[styles.title, { color: theme.ink }]}>
-          {mode === "in" ? "Welcome back." : "A house for everything."}
-        </Text>
+        <Text style={[styles.title, { color: theme.ink }]}>A house for everything.</Text>
         <Text style={[styles.sub, { color: theme.inkSoft }]}>
-          {mode === "in"
-            ? "Sign in and the lamp comes on."
-            : "Tell it anything. It keeps your words exactly, and hands them back when they matter."}
+          Tell it anything. It keeps your words exactly, and hands them back when they matter.
         </Text>
       </View>
 
-      <Card label={mode === "in" ? "Sign in" : "Create your account"}>
-        <TextInput
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Email"
-          placeholderTextColor={theme.inkFaint}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          style={[styles.input, { color: theme.ink, borderColor: theme.line }]}
-          accessibilityLabel="Email"
-        />
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Password — eight characters or more"
-          placeholderTextColor={theme.inkFaint}
-          secureTextEntry
-          style={[styles.input, { color: theme.ink, borderColor: theme.line }]}
-          accessibilityLabel="Password"
-        />
-        {error ? <Text style={[styles.error, { color: theme.inkSoft }]}>{error}</Text> : null}
-        <Tappable onPress={() => void submit()} disabled={busy}>
-          <View style={[styles.primary, { backgroundColor: theme.accent }]}>
-            {/* The words hold steady; only the light dims while the house works. */}
-            <Text style={[styles.primaryText, { opacity: busy ? 0.45 : 1 }]}>
-              {mode === "in" ? "Sign in" : "Create account"}
-            </Text>
+      {step === "choose" ? (
+        <Card label="Come in">
+          <Tappable onPress={() => void run(continueWithGoogle)} disabled={busy}>
+            <View style={[styles.primary, { backgroundColor: theme.accent }]}>
+              <Text style={[styles.primaryText, { opacity: busy ? 0.45 : 1 }]}>
+                Continue with Google
+              </Text>
+            </View>
+          </Tappable>
+
+          <View style={styles.orRow}>
+            <View style={[styles.orRule, { backgroundColor: theme.line }]} />
+            <Text style={[styles.orText, { color: theme.inkFaint }]}>or</Text>
+            <View style={[styles.orRule, { backgroundColor: theme.line }]} />
           </View>
-        </Tappable>
-        <Tappable onPress={() => setMode(mode === "in" ? "up" : "in")} hitSlop={8}>
-          <Text style={[styles.switch, { color: theme.accentDeep }]}>
-            {mode === "in" ? "New here? Create an account" : "Already have one? Sign in"}
+
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Your email"
+            placeholderTextColor={theme.inkFaint}
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            style={[styles.input, { color: theme.ink, borderColor: theme.line }]}
+            accessibilityLabel="Your email"
+          />
+          {note ? <Text style={[styles.error, { color: theme.inkSoft }]}>{note}</Text> : null}
+          <Tappable
+            onPress={() =>
+              void run(
+                () => sendEmailCode(email.trim()),
+                () => {
+                  setStep("waiting");
+                  setCode("");
+                },
+              )
+            }
+            disabled={busy || !emailLooksReal}
+          >
+            <Text
+              style={[
+                styles.secondary,
+                { color: theme.accentDeep, opacity: busy || !emailLooksReal ? 0.45 : 1 },
+              ]}
+            >
+              Post me a code instead
+            </Text>
+          </Tappable>
+        </Card>
+      ) : (
+        <Card label="The code is on its way">
+          <Text style={[styles.sub, { color: theme.inkSoft, marginBottom: space.s }]}>
+            Six digits, sent to {email.trim()}. It's good for an hour.
           </Text>
-        </Tappable>
-      </Card>
+          <TextInput
+            value={code}
+            onChangeText={(t) => setCode(t.replace(/[^0-9]/g, "").slice(0, 6))}
+            placeholder="• • • • • •"
+            placeholderTextColor={theme.inkFaint}
+            keyboardType="number-pad"
+            autoComplete="one-time-code"
+            autoFocus
+            style={[styles.codeInput, { color: theme.ink, borderColor: theme.line }]}
+            accessibilityLabel="The six-digit code"
+          />
+          {note ? <Text style={[styles.error, { color: theme.inkSoft }]}>{note}</Text> : null}
+          <Tappable
+            onPress={() => void run(() => verifyEmailCode(email.trim(), code))}
+            disabled={busy || code.length < 6}
+          >
+            <View style={[styles.primary, { backgroundColor: theme.accent }]}>
+              <Text style={[styles.primaryText, { opacity: busy || code.length < 6 ? 0.45 : 1 }]}>
+                Open the door
+              </Text>
+            </View>
+          </Tappable>
+          <View style={styles.waitingActions}>
+            <Tappable onPress={() => setStep("choose")} hitSlop={8}>
+              <Text style={[styles.switch, { color: theme.inkFaint }]}>Use another way</Text>
+            </Tappable>
+            <Tappable
+              onPress={() => void run(() => sendEmailCode(email.trim()))}
+              disabled={busy}
+              hitSlop={8}
+            >
+              <Text style={[styles.switch, { color: theme.accentDeep }]}>Post it again</Text>
+            </Tappable>
+          </View>
+        </Card>
+      )}
 
       <Text style={[styles.promise, { color: theme.inkFaint }]}>
         Your words are encrypted on this device before they ever leave it. Nobody — including us —
@@ -222,6 +270,30 @@ const styles = StyleSheet.create({
     marginTop: space.s,
   },
   primaryText: { fontFamily: fonts.uiBold, fontSize: 14, letterSpacing: 0.6, color: "#241a0c" },
+  orRow: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: space.m },
+  orRule: { flex: 1, height: StyleSheet.hairlineWidth },
+  orText: { fontFamily: fonts.ui, fontSize: 12, letterSpacing: 0.4 },
+  secondary: {
+    fontFamily: fonts.uiBold,
+    fontSize: 14,
+    textAlign: "center",
+    paddingVertical: 12,
+  },
+  codeInput: {
+    fontFamily: fonts.uiBold,
+    fontSize: 26,
+    letterSpacing: 10,
+    textAlign: "center",
+    borderWidth: 1,
+    borderRadius: radius.card,
+    paddingVertical: 14,
+    marginBottom: space.s,
+  },
+  waitingActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: space.s,
+  },
   switch: {
     fontFamily: fonts.uiMedium,
     fontSize: 13,

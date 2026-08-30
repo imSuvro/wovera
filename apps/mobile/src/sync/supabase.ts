@@ -40,7 +40,16 @@ function sessionStorage() {
 export const supabase: SupabaseClient | null =
   url && anonKey
     ? createClient(url, anonKey, {
-        auth: { persistSession: true, storage: sessionStorage(), autoRefreshToken: true },
+        auth: {
+          persistSession: true,
+          storage: sessionStorage(),
+          autoRefreshToken: true,
+          // PKCE: the browser hands back a code, the app trades it for a
+          // session. No secret ever rides in a redirect URL.
+          flowType: "pkce",
+          // The app is not a web page; it reads the code from the deep link.
+          detectSessionInUrl: false,
+        },
       })
     : null;
 
