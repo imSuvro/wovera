@@ -1,5 +1,7 @@
 import { createRecovery, deriveVaultKey, mnemonicToRootEntropy, runSync } from "@wovera/core";
 import type { SyncResult } from "@wovera/core";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { hasRootEntropy, loadVaultKey, saveRootEntropy } from "./keyStore";
@@ -27,8 +29,12 @@ interface SyncContextValue {
   mnemonic: string | null;
   error: string | null;
   lastSync: SyncResult | null;
-  signIn(email: string, password: string): Promise<string | null>;
-  signUp(email: string, password: string): Promise<string | null>;
+  /** Opens Google in a browser sheet; a house-voice line back when it fails. */
+  continueWithGoogle(): Promise<string | null>;
+  /** Posts a six-digit code to an email address. */
+  sendEmailCode(email: string): Promise<string | null>;
+  /** Trades that code for a session. */
+  verifyEmailCode(email: string, code: string): Promise<string | null>;
   signOut(): Promise<void>;
   confirmPhraseSaved(): void;
   restoreFromPhrase(mnemonic: string): Promise<string | null>;
@@ -135,15 +141,50 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     };
   }, [resolveKeyState]);
 
-  const signIn = useCallback(async (mail: string, password: string) => {
+  /**
+   * Google, through a browser sheet. Supabase mints the authorize URL, the
+   * sheet returns to wovera://auth/callback carrying a code, and the code is
+   * traded for a session — no secret ever rides in a redirect (PKCE).
+   */
+  const continueWithGoogle = useCallback(async () => {
     if (!supabase) return NO_ACCOUNT_YET;
-    const { error: err } = await supabase.auth.signInWithPassword({ email: mail, password });
+    const redirectTo = Linking.createURL("auth/callback");
+    const { data, error: err } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo, skipBrowserRedirect: true },
+    });
+    if (err || !data?.url) return houseVoice(err?.message ?? "");
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    // Closing the sheet is a decision, not a fault — say nothing.
+    if (result.type !== "success") return null;
+    // Expo's parser, not the runtime's URL: custom schemes are its job.
+    const params = Linking.parse(result.url).queryParams ?? {};
+    const code = typeof params.code === "string" ? params.code : null;
+    if (!code) {
+      const why = params.error_description;
+      return houseVoice(typeof why === "string" ? why : "");
+    }
+    const { error: exchangeErr } = await supabase.auth.exchangeCodeForSession(code);
+    return exchangeErr ? houseVoice(exchangeErr.message) : null;
+  }, []);
+
+  /** A six-digit code, posted to an email address. Nothing to remember. */
+  const sendEmailCode = useCallback(async (mail: string) => {
+    if (!supabase) return NO_ACCOUNT_YET;
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email: mail,
+      options: { shouldCreateUser: true },
+    });
     return err ? houseVoice(err.message) : null;
   }, []);
 
-  const signUp = useCallback(async (mail: string, password: string) => {
+  const verifyEmailCode = useCallback(async (mail: string, code: string) => {
     if (!supabase) return NO_ACCOUNT_YET;
-    const { error: err } = await supabase.auth.signUp({ email: mail, password });
+    const { error: err } = await supabase.auth.verifyOtp({
+      email: mail,
+      token: code.trim(),
+      type: "email",
+    });
     return err ? houseVoice(err.message) : null;
   }, []);
 
@@ -183,8 +224,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         mnemonic,
         error,
         lastSync,
-        signIn,
-        signUp,
+        continueWithGoogle,
+        sendEmailCode,
+        verifyEmailCode,
         signOut,
         confirmPhraseSaved,
         restoreFromPhrase,
